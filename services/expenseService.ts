@@ -3,6 +3,7 @@ import {
   EXPENSES_COL_ID,
   ID,
   Query,
+  RECEIPT_SCANS_COL_ID,
   databases,
 } from "../lib/appwrite";
 import { Expense } from "../types/models";
@@ -58,7 +59,27 @@ export async function getUserExpenses(userId: string): Promise<Expense[]> {
 }
 
 export async function deleteExpense(expenseId: string) {
-  return databases.deleteDocument(DB_ID, EXPENSES_COL_ID, expenseId);
+  const expense = await databases.getDocument(
+    DB_ID,
+    EXPENSES_COL_ID,
+    expenseId
+  );
+
+  await databases.deleteDocument(DB_ID, EXPENSES_COL_ID, expenseId);
+
+  if (expense.sourceType === "receipt_qr" && expense.sourceId) {
+    try {
+      await databases.deleteDocument(
+        DB_ID,
+        RECEIPT_SCANS_COL_ID,
+        expense.sourceId
+      );
+    } catch (error) {
+      console.warn("Не удалось удалить связанную запись QR-чека:", error);
+    }
+  }
+
+  return true;
 }
 
 export function getCurrentMonthExpenses(expenses: Expense[]) {

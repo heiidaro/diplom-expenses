@@ -4,7 +4,6 @@ export type SourceType =
   | "manual"
   | "receipt_qr"
   | "receipt_ocr"
-  | "bank_import"
   | "recurring";
 
 export type ExpenseStatus = "confirmed" | "needs_review" | "auto_created";
@@ -41,17 +40,22 @@ export interface Expense {
 
 export interface CategoryRule {
   $id: string;
+  $createdAt?: string;
+  $updatedAt?: string;
+
   userId: string;
   keyword: string;
   categoryId: string;
   source?: string;
   usageCount?: number;
   lastUsedAt?: string;
-  createdAt?: string;
 }
 
 export interface RecurringExpense {
   $id: string;
+  $createdAt?: string;
+  $updatedAt?: string;
+
   userId: string;
   title: string;
   amount: number;
@@ -60,6 +64,38 @@ export interface RecurringExpense {
   dayOfMonth?: number;
   nextRunAt: string;
   isActive: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+}
+
+export interface ReceiptScan {
+  $id: string;
+  $createdAt?: string;
+  $updatedAt?: string;
+
+  userId: string;
+  qrRawData?: string;
+  qrHash?: string;
+  totalAmount?: number;
+  purchaseDate?: string;
+  storeName?: string;
+  status?: string;
+}
+
+export interface ParsedReceiptQr {
+  raw: string;
+  totalAmount: number;
+  purchaseDate: string;
+  fiscalNumber?: string;
+  fiscalDocument?: string;
+  fiscalSign?: string;
+}
+
+export interface SupportTicket {
+  $id: string;
+  $createdAt?: string;
+  $updatedAt?: string;
+
+  userId: string;
+  title: string;
+  message: string;
+  status?: "open" | "in_progress" | "closed" | string;
 }

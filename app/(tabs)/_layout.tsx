@@ -9,7 +9,7 @@ function AddButton() {
     <TouchableOpacity
       style={styles.addButton}
       activeOpacity={0.85}
-      onPress={() => router.push("/manual-expense")}
+      onPress={() => router.push("/add-expense")}
     >
       <Ionicons name="add" size={36} color="#FFFFFF" />
     </TouchableOpacity>
@@ -78,7 +78,7 @@ export default function TabsLayout() {
         listeners={{
           tabPress: (event) => {
             event.preventDefault();
-            router.push("/manual-expense");
+            router.push("/add-expense");
           },
         }}
       />

@@ -19,6 +19,10 @@ import { COLORS } from "../../lib/theme";
 import { getUserCategories } from "../../services/categoryService";
 import { createManualExpense } from "../../services/expenseService";
 import { Category } from "../../types/models";
+import {
+  findCategoryByText,
+  saveCategoryRuleFromText,
+} from "../../services/categoryRuleService";
 
 export default function ManualExpenseScreen() {
   const [amount, setAmount] = useState("");
@@ -89,6 +93,12 @@ export default function ManualExpenseScreen() {
         date: new Date().toISOString(),
       });
 
+      await saveCategoryRuleFromText({
+        userId: user.$id,
+        text: note.trim(),
+        categoryId: selectedCategoryId,
+      });
+
       Alert.alert("Готово", "Расход добавлен", [
         {
           text: "ОК",
@@ -147,7 +157,23 @@ export default function ManualExpenseScreen() {
                 placeholder="Например: кофе, продукты, такси"
                 placeholderTextColor={COLORS.textMuted}
                 value={note}
-                onChangeText={setNote}
+                onChangeText={async (value) => {
+                  setNote(value);
+
+                  try {
+                    const user = await account.get();
+                    const matchedCategoryId = await findCategoryByText({
+                      userId: user.$id,
+                      text: value,
+                    });
+
+                    if (matchedCategoryId) {
+                      setSelectedCategoryId(matchedCategoryId);
+                    }
+                  } catch {
+                    // Автоподбор категории не должен ломать ручное добавление
+                  }
+                }}
               />
             </View>
 
@@ -213,8 +239,8 @@ export default function ManualExpenseScreen() {
                 color={COLORS.accent}
               />
               <Text style={styles.infoText}>
-                Расход будет сохранен с источником manual. Позже сюда добавим
-                выбор даты.
+                После сохранения приложение запомнит связь между комментарием и категорией.
+                В следующий раз категория сможет подставиться автоматически.
               </Text>
             </View>
 

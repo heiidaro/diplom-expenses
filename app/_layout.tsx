@@ -23,6 +23,39 @@ export default function RootLayout() {
             presentation: "modal",
           }}
         />
+        <Stack.Screen
+          name="(modals)/receipt-scan"
+          options={{
+            presentation: "modal",
+          }}
+        />
+        <Stack.Screen
+          name="(modals)/recurring-expenses"
+          options={{
+            presentation: "modal",
+          }}
+        />
+
+        <Stack.Screen
+          name="(modals)/category-rules"
+          options={{
+            presentation: "modal",
+          }}
+        />
+
+        <Stack.Screen
+          name="(modals)/support"
+          options={{
+            presentation: "modal",
+          }}
+        />
+
+        <Stack.Screen
+          name="(modals)/settings"
+          options={{
+            presentation: "modal",
+          }}
+        />
       </Stack>
     </>
   );

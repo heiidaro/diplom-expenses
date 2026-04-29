@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import React from "react";
+import { router, useFocusEffect } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
   Alert,
   SafeAreaView,
@@ -12,31 +12,66 @@ import {
 } from "react-native";
 import { account } from "../../lib/appwrite";
 import { COLORS } from "../../lib/theme";
+import { getUserCategories } from "../../services/categoryService";
+import { getUserExpenses } from "../../services/expenseService";
+import { exportExpensesToCsv } from "../../services/exportService";
 
 const profileItems = [
   {
-    title: "Автоматизация",
-    subtitle: "Регулярные расходы, импорт выписки и правила",
+    title: "Регулярные расходы",
+    subtitle: "Автоматическое добавление повторяющихся трат",
+    icon: "repeat-outline",
+    route: "/recurring-expenses",
+  },
+  {
+    title: "Правила категорий",
+    subtitle: "Автоматическое обучение по комментариям",
     icon: "sparkles-outline",
+    route: "/category-rules",
   },
   {
     title: "Экспорт статистики",
     subtitle: "Скачать отчет по расходам",
     icon: "download-outline",
+    route: "export",
   },
   {
     title: "Поддержка",
     subtitle: "Создать обращение в поддержку",
     icon: "chatbubble-ellipses-outline",
+    route: "/support",
   },
   {
     title: "Настройки",
     subtitle: "Имя, почта и пароль",
     icon: "settings-outline",
+    route: "/settings",
   },
 ];
 
 export default function ProfileScreen() {
+  const [userName, setUserName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProfileUser();
+    }, [])
+  );
+
+  async function loadProfileUser() {
+    try {
+      const user = await account.get();
+
+      setUserName(user.name || "Пользователь");
+      setUserEmail(user.email || "Email не указан");
+    } catch (error) {
+      console.error(error);
+      setUserName("Пользователь");
+      setUserEmail("Email не указан");
+    }
+  }
+
   async function handleLogout() {
     try {
       await account.deleteSession("current");
@@ -44,6 +79,33 @@ export default function ProfileScreen() {
     } catch (error) {
       console.error(error);
       Alert.alert("Ошибка", "Не удалось выйти из аккаунта");
+    }
+  }
+
+  async function handleExportStatistics() {
+    try {
+      const user = await account.get();
+
+      const [categories, expenses] = await Promise.all([
+        getUserCategories(user.$id),
+        getUserExpenses(user.$id),
+      ]);
+
+      if (expenses.length === 0) {
+        Alert.alert("Нет данных", "Добавьте хотя бы один расход для экспорта");
+        return;
+      }
+
+      await exportExpensesToCsv({
+        expenses,
+        categories,
+      });
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert(
+        "Ошибка экспорта",
+        error?.message || "Не удалось сформировать файл"
+      );
     }
   }
 
@@ -57,20 +119,47 @@ export default function ProfileScreen() {
 
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <Ionicons name="person-outline" size={34} color={COLORS.accent} />
+            <Text style={styles.avatarText}>
+              {(userName || userEmail || "U").charAt(0).toUpperCase()}
+            </Text>
           </View>
 
-          <View>
-            <Text style={styles.userName}>Пользователь</Text>
-            <Text style={styles.userEmail}>Аккаунт Appwrite</Text>
+          <View style={styles.profileInfo}>
+            <Text style={styles.profileName}>
+              {userName || "Пользователь"}
+            </Text>
+
+            <Text style={styles.profileEmail}>
+              {userEmail || "Email не указан"}
+            </Text>
           </View>
         </View>
 
         <View style={styles.list}>
           {profileItems.map((item) => (
-            <TouchableOpacity key={item.title} style={styles.item}>
+            <TouchableOpacity
+              key={item.title}
+              style={styles.item}
+              onPress={() => {
+                if (item.route === "export") {
+                  handleExportStatistics();
+                  return;
+                }
+
+                if (item.route) {
+                  router.push(item.route as any);
+                  return;
+                }
+
+                Alert.alert("Скоро", "Этот раздел добавим следующим этапом");
+              }}
+            >
               <View style={styles.itemIcon}>
-                <Ionicons name={item.icon as any} size={22} color={COLORS.accent} />
+                <Ionicons
+                  name={item.icon as any}
+                  size={22}
+                  color={COLORS.accent}
+                />
               </View>
 
               <View style={styles.itemInfo}>
@@ -78,7 +167,11 @@ export default function ProfileScreen() {
                 <Text style={styles.itemSubtitle}>{item.subtitle}</Text>
               </View>
 
-              <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={COLORS.textMuted}
+              />
             </TouchableOpacity>
           ))}
         </View>
@@ -126,18 +219,26 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: COLORS.accentSoft,
+    backgroundColor: COLORS.accent,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 14,
   },
-  userName: {
+  avatarText: {
+    color: COLORS.white,
+    fontSize: 24,
+    fontWeight: "900",
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
     color: COLORS.text,
     fontSize: 18,
     fontWeight: "900",
     marginBottom: 4,
   },
-  userEmail: {
+  profileEmail: {
     color: COLORS.textMuted,
     fontSize: 14,
   },

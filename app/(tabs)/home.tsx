@@ -1,6 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
+import ExpenseDonutChart from "../../components/ExpenseDonutChart";
+import {
+  buildCategoryChartData,
+  ChartPeriod,
+  getExpensesByDateRange,
+  getExpensesByPeriod,
+} from "../../services/statisticsService";
 import {
   ActivityIndicator,
   Alert,
@@ -30,6 +37,8 @@ import {
 } from "../../services/expenseService";
 import { Category, Expense } from "../../types/models";
 import { formatDate, formatMoney } from "../../utils/format";
+import { processDueRecurringExpenses } from "../../services/recurringExpenseService";
+import { saveCategoryRuleFromText } from "../../services/categoryRuleService";
 
 export default function HomeScreen() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -44,8 +53,258 @@ export default function HomeScreen() {
   const [editCategoryId, setEditCategoryId] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  const monthExpenses = getCurrentMonthExpenses(expenses);
-  const monthTotal = getTotalAmount(monthExpenses);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
+    null
+  );
+  const [selectedPeriod, setSelectedPeriod] = useState<ChartPeriod>("month");
+
+  const [isPeriodModalVisible, setIsPeriodModalVisible] = useState(false);
+  const [periodStartDate, setPeriodStartDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  const [periodEndDate, setPeriodEndDate] = useState(() => new Date());
+  const [tempStartDate, setTempStartDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  const [tempEndDate, setTempEndDate] = useState(() => new Date());
+
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+
+  const [rangeSelectionStep, setRangeSelectionStep] = useState<"start" | "end">(
+    "start"
+  );
+
+  const periodExpenses = useMemo(() => {
+    if (selectedPeriod === "custom") {
+      return getExpensesByDateRange(expenses, periodStartDate, periodEndDate);
+    }
+
+    return getExpensesByPeriod(expenses, selectedPeriod);
+  }, [expenses, selectedPeriod, periodStartDate, periodEndDate]);
+
+  const periodTotal = useMemo(() => {
+    return getTotalAmount(periodExpenses);
+  }, [periodExpenses]);
+
+  const chartData = useMemo(() => {
+    return buildCategoryChartData({
+      expenses: periodExpenses,
+      categories,
+    });
+  }, [periodExpenses, categories]);
+
+  const filteredExpenses = useMemo(() => {
+    const sortedExpenses = [...periodExpenses].sort((a, b) => {
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
+
+    if (!selectedCategoryId) {
+      return sortedExpenses;
+    }
+
+    return sortedExpenses.filter(
+      (expense) => expense.categoryId === selectedCategoryId
+    );
+  }, [periodExpenses, selectedCategoryId]);
+
+  function handleChangeChartPeriod(period: ChartPeriod) {
+    setSelectedPeriod(period);
+    setSelectedCategoryId(null);
+    setIsPeriodModalVisible(false);
+
+    const now = new Date();
+
+    if (period === "week") {
+      const day = now.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      const start = new Date(now);
+      start.setDate(now.getDate() + diff);
+      start.setHours(0, 0, 0, 0);
+
+      setPeriodStartDate(start);
+      setPeriodEndDate(now);
+    }
+
+    if (period === "month") {
+      setPeriodStartDate(new Date(now.getFullYear(), now.getMonth(), 1));
+      setPeriodEndDate(now);
+    }
+
+    if (period === "year") {
+      setPeriodStartDate(new Date(now.getFullYear(), 0, 1));
+      setPeriodEndDate(now);
+    }
+  }
+
+  function formatPeriodDate(date: Date) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
+  function getCurrentPeriodTitle() {
+    if (selectedPeriod === "week") {
+      return "Неделя";
+    }
+
+    if (selectedPeriod === "year") {
+      return "Год";
+    }
+
+    if (selectedPeriod === "custom") {
+      return `${formatPeriodDate(periodStartDate)} — ${formatPeriodDate(
+        periodEndDate
+      )}`;
+    }
+
+    return "Месяц";
+  }
+
+  function openPeriodModal() {
+    setTempStartDate(periodStartDate);
+    setTempEndDate(periodEndDate);
+    setCalendarMonth(
+      new Date(periodStartDate.getFullYear(), periodStartDate.getMonth(), 1)
+    );
+    setRangeSelectionStep("start");
+    setIsPeriodModalVisible(true);
+  }
+
+  function handleApplyCustomPeriod() {
+    if (tempStartDate > tempEndDate) {
+      Alert.alert("Ошибка", "Дата начала не может быть позже даты окончания");
+      return;
+    }
+
+    setPeriodStartDate(tempStartDate);
+    setPeriodEndDate(tempEndDate);
+    setSelectedPeriod("custom");
+    setSelectedCategoryId(null);
+    setIsPeriodModalVisible(false);
+  }
+
+  function normalizeDate(date: Date) {
+    const result = new Date(date);
+    result.setHours(0, 0, 0, 0);
+    return result;
+  }
+
+  function isSameCalendarDay(firstDate: Date, secondDate: Date) {
+    const first = normalizeDate(firstDate);
+    const second = normalizeDate(secondDate);
+
+    return first.getTime() === second.getTime();
+  }
+
+  function isDateBetween(date: Date, startDate: Date, endDate: Date) {
+    const current = normalizeDate(date).getTime();
+    const start = normalizeDate(startDate).getTime();
+    const end = normalizeDate(endDate).getTime();
+
+    return current > start && current < end;
+  }
+
+  function isDateAfterToday(date: Date) {
+    const today = normalizeDate(new Date());
+    const current = normalizeDate(date);
+
+    return current.getTime() > today.getTime();
+  }
+
+  function getCalendarMonthTitle(date: Date) {
+    return new Intl.DateTimeFormat("ru-RU", {
+      month: "long",
+      year: "numeric",
+    }).format(date);
+  }
+
+  function getCalendarDays(monthDate: Date) {
+    const year = monthDate.getFullYear();
+    const month = monthDate.getMonth();
+
+    const firstDayOfMonth = new Date(year, month, 1);
+    const lastDayOfMonth = new Date(year, month + 1, 0);
+
+    const daysInMonth = lastDayOfMonth.getDate();
+
+    // getDay(): 0 — воскресенье, 1 — понедельник.
+    // Делаем начало недели с понедельника.
+    const firstWeekDay = (firstDayOfMonth.getDay() + 6) % 7;
+
+    const days: Array<Date | null> = [];
+
+    for (let i = 0; i < firstWeekDay; i += 1) {
+      days.push(null);
+    }
+
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      days.push(new Date(year, month, day));
+    }
+
+    while (days.length % 7 !== 0) {
+      days.push(null);
+    }
+
+    return days;
+  }
+
+  function goToPreviousMonth() {
+    setCalendarMonth((current) => {
+      return new Date(current.getFullYear(), current.getMonth() - 1, 1);
+    });
+  }
+
+  function goToNextMonth() {
+    const nextMonth = new Date(
+      calendarMonth.getFullYear(),
+      calendarMonth.getMonth() + 1,
+      1
+    );
+
+    const today = new Date();
+    const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    if (nextMonth > currentMonthStart) {
+      return;
+    }
+
+    setCalendarMonth(nextMonth);
+  }
+
+  function handleSelectCalendarDay(date: Date) {
+    if (isDateAfterToday(date)) {
+      return;
+    }
+
+    const selectedDate = normalizeDate(date);
+
+    if (rangeSelectionStep === "start") {
+      setTempStartDate(selectedDate);
+      setTempEndDate(selectedDate);
+      setRangeSelectionStep("end");
+      return;
+    }
+
+    if (selectedDate < normalizeDate(tempStartDate)) {
+      setTempEndDate(tempStartDate);
+      setTempStartDate(selectedDate);
+    } else {
+      setTempEndDate(selectedDate);
+    }
+
+    setRangeSelectionStep("start");
+  }
+
+  const selectedCategoryName = selectedCategoryId
+    ? getCategoryName(categories, selectedCategoryId)
+    : null;
 
   useFocusEffect(
     useCallback(() => {
@@ -58,6 +317,8 @@ export default function HomeScreen() {
       setIsLoading(true);
 
       const user = await account.get();
+
+      await processDueRecurringExpenses(user.$id);
 
       const [loadedCategories, loadedExpenses] = await Promise.all([
         getUserCategories(user.$id),
@@ -133,6 +394,14 @@ export default function HomeScreen() {
         note: editNote.trim(),
       });
 
+      const user = await account.get();
+
+      await saveCategoryRuleFromText({
+        userId: user.$id,
+        text: editNote.trim(),
+        categoryId: editCategoryId,
+      });
+
       closeEditExpenseModal();
       await loadData();
     } catch (error: any) {
@@ -179,12 +448,12 @@ export default function HomeScreen() {
       return "чек";
     }
 
-    if (sourceType === "bank_import") {
-      return "выписка";
-    }
-
     if (sourceType === "recurring") {
       return "регулярно";
+    }
+
+    if (sourceType === "receipt_qr") {
+      return "QR-чек";
     }
 
     return "расход";
@@ -217,13 +486,28 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View style={styles.balanceCard}>
-          <Text style={styles.cardLabel}>Расходы за месяц</Text>
-          <Text style={styles.amount}>{formatMoney(monthTotal)}</Text>
+        <TouchableOpacity
+          style={styles.balanceCard}
+          activeOpacity={0.88}
+          onPress={openPeriodModal}
+        >
+          <View style={styles.balanceHeader}>
+            <View>
+              <Text style={styles.cardLabel}>Расходы за период</Text>
+              <Text style={styles.periodLabel}>{getCurrentPeriodTitle()}</Text>
+            </View>
+
+            <View style={styles.calendarButton}>
+              <Ionicons name="calendar-outline" size={20} color={COLORS.accent} />
+            </View>
+          </View>
+
+          <Text style={styles.amount}>{formatMoney(periodTotal)}</Text>
+
           <Text style={styles.cardHint}>
-            Учитываются расходы за текущий календарный месяц
+            Нажмите на карточку, чтобы выбрать даты в календаре
           </Text>
-        </View>
+        </TouchableOpacity>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Автоматизация</Text>
@@ -241,8 +525,8 @@ export default function HomeScreen() {
                 size={26}
                 color={COLORS.accent}
               />
-              <Text style={styles.smallCardTitle}>Выписка</Text>
-              <Text style={styles.smallCardText}>Импорт из банка</Text>
+                <Text style={styles.smallCardTitle}>Электронный чек</Text>
+                <Text style={styles.smallCardText}>Чек по операции</Text>
             </View>
 
             <View style={styles.smallCard}>
@@ -261,17 +545,41 @@ export default function HomeScreen() {
               <Text style={styles.smallCardText}>Правила категорий</Text>
             </View>
           </View>
+          <ExpenseDonutChart
+            data={chartData}
+            totalAmount={periodTotal}
+            selectedCategoryId={selectedCategoryId}
+            selectedPeriod={selectedPeriod}
+            onSelectCategory={setSelectedCategoryId}
+            onChangePeriod={handleChangeChartPeriod}
+          />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Последние операции</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>
+              {selectedCategoryName
+                ? `Операции: ${selectedCategoryName}`
+                : selectedPeriod === "week"
+                  ? "Операции за неделю"
+                  : selectedPeriod === "year"
+                  ? "Операции за год"
+                  : "Операции за месяц"}
+            </Text>
+
+            {selectedCategoryId ? (
+              <TouchableOpacity onPress={() => setSelectedCategoryId(null)}>
+                <Text style={styles.clearFilter}>Сбросить</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
 
           {isLoading ? (
             <View style={styles.emptyCard}>
               <ActivityIndicator color={COLORS.accent} />
               <Text style={styles.emptyTitle}>Загрузка расходов...</Text>
             </View>
-          ) : expenses.length === 0 ? (
+          ) : filteredExpenses.length === 0 ? (
             <View style={styles.emptyCard}>
               <Ionicons
                 name="receipt-outline"
@@ -285,7 +593,7 @@ export default function HomeScreen() {
             </View>
           ) : (
             <View style={styles.expensesList}>
-              {expenses.map((expense) => {
+              {filteredExpenses.map((expense) => {
                 const categoryName = getCategoryName(
                   categories,
                   expense.categoryId
@@ -431,11 +739,322 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+      <Modal visible={isPeriodModalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Выбор периода</Text>
+
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setIsPeriodModalVisible(false)}
+              >
+                <Ionicons name="close" size={22} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.periodPreviewCard}>
+              <Text style={styles.periodPreviewLabel}>
+                {rangeSelectionStep === "start"
+                  ? "Выберите дату начала"
+                  : "Теперь выберите дату окончания"}
+              </Text>
+
+              <Text style={styles.periodPreviewValue}>
+                {formatPeriodDate(tempStartDate)} — {formatPeriodDate(tempEndDate)}
+              </Text>
+            </View>
+
+            <View style={styles.calendarCard}>
+              <View style={styles.calendarHeader}>
+                <TouchableOpacity
+                  style={styles.calendarArrowButton}
+                  onPress={goToPreviousMonth}
+                >
+                  <Ionicons name="chevron-back" size={22} color={COLORS.text} />
+                </TouchableOpacity>
+
+                <Text style={styles.calendarTitle}>
+                  {getCalendarMonthTitle(calendarMonth)}
+                </Text>
+
+                <TouchableOpacity
+                  style={styles.calendarArrowButton}
+                  onPress={goToNextMonth}
+                >
+                  <Ionicons name="chevron-forward" size={22} color={COLORS.text} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.weekDaysRow}>
+                {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((day) => (
+                  <Text key={day} style={styles.weekDayText}>
+                    {day}
+                  </Text>
+                ))}
+              </View>
+
+              <View style={styles.calendarGrid}>
+                {getCalendarDays(calendarMonth).map((date, index) => {
+                  if (!date) {
+                    return <View key={`empty_${index}`} style={styles.calendarDay} />;
+                  }
+
+                  const isStart = isSameCalendarDay(date, tempStartDate);
+                  const isEnd = isSameCalendarDay(date, tempEndDate);
+                  const isBetween = isDateBetween(date, tempStartDate, tempEndDate);
+                  const isToday = isSameCalendarDay(date, new Date());
+                  const isDisabled = isDateAfterToday(date);
+
+                  return (
+                    <TouchableOpacity
+                      key={date.toISOString()}
+                      style={styles.calendarDay}
+                      onPress={() => handleSelectCalendarDay(date)}
+                      disabled={isDisabled}
+                      activeOpacity={0.85}
+                    >
+                      <View
+                        style={[
+                          styles.rangeBackground,
+                          isBetween && styles.rangeBackgroundActive,
+                          isStart && styles.rangeBackgroundStart,
+                          isEnd && styles.rangeBackgroundEnd,
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.dayCircle,
+                            isToday && styles.dayCircleToday,
+                            (isStart || isEnd) && styles.dayCircleSelected,
+                            isDisabled && styles.dayCircleDisabled,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.dayText,
+                              isToday && styles.dayTextToday,
+                              (isStart || isEnd) && styles.dayTextSelected,
+                              isDisabled && styles.dayTextDisabled,
+                            ]}
+                          >
+                            {date.getDate()}
+                          </Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={styles.quickPeriodsRow}>
+              <TouchableOpacity
+                style={styles.quickPeriodButton}
+                onPress={() => handleChangeChartPeriod("week")}
+              >
+                <Text style={styles.quickPeriodText}>Неделя</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.quickPeriodButton}
+                onPress={() => handleChangeChartPeriod("month")}
+              >
+                <Text style={styles.quickPeriodText}>Месяц</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.quickPeriodButton}
+                onPress={() => handleChangeChartPeriod("year")}
+              >
+                <Text style={styles.quickPeriodText}>Год</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={handleApplyCustomPeriod}
+            >
+              <Text style={styles.saveButtonText}>Применить период</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  calendarCard: {
+    backgroundColor: COLORS.cardSecond,
+    borderRadius: 22,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 16,
+  },
+  calendarHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  calendarArrowButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.card,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  calendarTitle: {
+    color: COLORS.text,
+    fontSize: 17,
+    fontWeight: "900",
+    textTransform: "capitalize",
+  },
+  weekDaysRow: {
+    flexDirection: "row",
+    marginBottom: 8,
+  },
+  weekDayText: {
+    width: `${100 / 7}%`,
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  calendarGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  calendarDay: {
+    width: `${100 / 7}%`,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rangeBackground: {
+    width: "100%",
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rangeBackgroundActive: {
+    backgroundColor: COLORS.accentSoft,
+  },
+  rangeBackgroundStart: {
+    backgroundColor: COLORS.accentSoft,
+    borderTopLeftRadius: 999,
+    borderBottomLeftRadius: 999,
+  },
+  rangeBackgroundEnd: {
+    backgroundColor: COLORS.accentSoft,
+    borderTopRightRadius: 999,
+    borderBottomRightRadius: 999,
+  },
+  dayCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dayCircleToday: {
+    borderWidth: 1,
+    borderColor: COLORS.accent,
+  },
+  dayCircleSelected: {
+    backgroundColor: COLORS.accent,
+    borderWidth: 0,
+  },
+  dayCircleDisabled: {
+    opacity: 0.35,
+  },
+  dayText: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  dayTextToday: {
+    color: COLORS.accent,
+  },
+  dayTextSelected: {
+    color: COLORS.white,
+  },
+  dayTextDisabled: {
+    color: COLORS.textMuted,
+  },
+  quickPeriodsRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 16,
+  },
+  quickPeriodButton: {
+    flex: 1,
+    backgroundColor: COLORS.cardSecond,
+    borderRadius: 16,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  quickPeriodText: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  balanceHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  periodLabel: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  calendarButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: COLORS.accentSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  periodPreviewCard: {
+    backgroundColor: COLORS.cardSecond,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 18,
+  },
+  periodPreviewLabel: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginBottom: 5,
+  },
+  periodPreviewValue: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  clearFilter: {
+    color: COLORS.accent,
+    fontSize: 14,
+    fontWeight: "800",
+  },
   safeArea: {
     flex: 1,
     backgroundColor: COLORS.background,
