@@ -4,6 +4,8 @@ import DateTimePicker, {
 } from "@react-native-community/datetimepicker";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
+import { getUserExpenses } from "../../services/expenseService";
+import { calculateGoalProgress } from "../../services/goalAnalyticsService";
 import {
   ActivityIndicator,
   Alert,
@@ -26,7 +28,7 @@ import {
   getUserSpendingGoals,
   updateSpendingGoal,
 } from "../../services/goalService";
-import { SpendingGoal } from "../../types/models";
+import { Expense, SpendingGoal } from "../../types/models";
 
 type PeriodType = "month" | "year" | "custom";
 type PickerField = "start" | "end" | null;
@@ -77,6 +79,7 @@ export default function SpendingGoalsScreen() {
   const router = useRouter();
 
   const [goals, setGoals] = useState<SpendingGoal[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -107,9 +110,14 @@ export default function SpendingGoalsScreen() {
       setIsLoading(true);
 
       const user = await account.get();
-      const userGoals = await getUserSpendingGoals(user.$id);
+
+      const [userGoals, userExpenses] = await Promise.all([
+        getUserSpendingGoals(user.$id),
+        getUserExpenses(user.$id),
+      ]);
 
       setGoals(userGoals);
+      setExpenses(userExpenses);
     } catch (error) {
       console.error(error);
       Alert.alert("Ошибка", "Не удалось загрузить цели");
@@ -485,6 +493,10 @@ export default function SpendingGoalsScreen() {
         ) : (
           goals.map((goal) => {
             const isEditingThis = editingGoalId === goal.$id;
+            const goalProgress = calculateGoalProgress({
+              goal,
+              expenses,
+            });
 
             return (
               <View
@@ -494,6 +506,7 @@ export default function SpendingGoalsScreen() {
                   isEditingThis && styles.goalCardEditing,
                 ]}
               >
+     
                 <View style={styles.goalTopRow}>
                   <View style={{ flex: 1, marginRight: 10 }}>
                     <Text style={styles.goalTitle}>{goal.title}</Text>
@@ -524,6 +537,102 @@ export default function SpendingGoalsScreen() {
                 </View>
 
                 <View style={styles.goalInfoRow}>
+                  <View style={styles.goalAnalyticsCard}>
+                    <View style={styles.progressHeader}>
+                      <Text style={styles.progressTitle}>Прогресс цели</Text>
+                      <Text
+                        style={[
+                          styles.progressPercent,
+                          goalProgress.isExceeded && styles.progressPercentDanger,
+                        ]}
+                      >
+                        {goalProgress.rawProgressPercent.toFixed(0)}%
+                      </Text>
+                    </View>
+
+                    <View style={styles.progressBar}>
+                      <View
+                        style={[
+                          styles.progressFill,
+                          goalProgress.isExceeded && styles.progressFillDanger,
+                          {
+                            width: `${goalProgress.progressPercent}%`,
+                          },
+                        ]}
+                      />
+                    </View>
+
+                    <View style={styles.goalStatsGrid}>
+                      <View style={styles.goalStatItem}>
+                        <Text style={styles.goalStatLabel}>Лимит</Text>
+                        <Text style={styles.goalStatValue}>
+                          {formatMoney(goalProgress.limitAmount)}
+                        </Text>
+                      </View>
+
+                      <View style={styles.goalStatItem}>
+                        <Text style={styles.goalStatLabel}>Потрачено</Text>
+                        <Text style={styles.goalStatValue}>
+                          {formatMoney(goalProgress.spentAmount)}
+                        </Text>
+                      </View>
+
+                      {goalProgress.isExceeded ? (
+                        <View style={styles.goalStatItem}>
+                          <Text style={styles.goalStatLabel}>Превышение</Text>
+                          <Text style={styles.goalStatValueDanger}>
+                            {formatMoney(goalProgress.exceededAmount)}
+                          </Text>
+                        </View>
+                      ) : (
+                        <View style={styles.goalStatItem}>
+                          <Text style={styles.goalStatLabel}>Осталось</Text>
+                          <Text style={styles.goalStatValueSuccess}>
+                            {formatMoney(goalProgress.remainingAmount)}
+                          </Text>
+                        </View>
+                      )}
+
+                      <View style={styles.goalStatItem}>
+                        <Text style={styles.goalStatLabel}>Дней осталось</Text>
+                        <Text style={styles.goalStatValue}>
+                          {goalProgress.daysRemaining}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {goalProgress.isExceeded ? (
+                      <View style={styles.goalWarningBox}>
+                        <Ionicons
+                          name="warning-outline"
+                          size={20}
+                          color={COLORS.danger}
+                        />
+                        <Text style={styles.goalWarningText}>
+                          Цель превышена. Расходы за выбранный период выше установленного лимита.
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={styles.dailyLimitBox}>
+                        <View style={styles.dailyLimitIcon}>
+                          <Ionicons
+                            name="wallet-outline"
+                            size={20}
+                            color={COLORS.accent}
+                          />
+                        </View>
+
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.dailyLimitLabel}>
+                            Можно тратить в день
+                          </Text>
+                          <Text style={styles.dailyLimitValue}>
+                            {formatMoney(goalProgress.dailyAvailable)}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                  </View>
                   <View style={styles.goalInfoItem}>
                     <Text style={styles.goalInfoLabel}>Тип</Text>
                     <Text style={styles.goalInfoValue}>
@@ -1079,5 +1188,127 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 1,
     borderColor: COLORS.border,
+  },
+  goalAnalyticsCard: {
+    backgroundColor: COLORS.cardSecond,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 14,
+  },
+  progressHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  progressTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  progressPercent: {
+    color: COLORS.accent,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  progressPercentDanger: {
+    color: COLORS.danger,
+  },
+  progressBar: {
+    height: 10,
+    backgroundColor: COLORS.card,
+    borderRadius: 999,
+    overflow: "hidden",
+    marginBottom: 14,
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: COLORS.accent,
+    borderRadius: 999,
+  },
+  progressFillDanger: {
+    backgroundColor: COLORS.danger,
+  },
+  goalStatsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  goalStatItem: {
+    width: "48%",
+    backgroundColor: COLORS.card,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  goalStatLabel: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginBottom: 5,
+  },
+  goalStatValue: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  goalStatValueSuccess: {
+    color: "#10B981",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  goalStatValueDanger: {
+    color: COLORS.danger,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  goalWarningBox: {
+    marginTop: 12,
+    backgroundColor: "rgba(239, 68, 68, 0.10)",
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.22)",
+    borderRadius: 16,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  goalWarningText: {
+    flex: 1,
+    color: COLORS.danger,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "800",
+  },
+  dailyLimitBox: {
+    marginTop: 12,
+    backgroundColor: `${COLORS.accent}12`,
+    borderWidth: 1,
+    borderColor: `${COLORS.accent}26`,
+    borderRadius: 16,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  dailyLimitIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${COLORS.accent}18`,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  dailyLimitLabel: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginBottom: 3,
+  },
+  dailyLimitValue: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: "900",
   },
 });
