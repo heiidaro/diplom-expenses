@@ -63,6 +63,20 @@ export default function RootLayout() {
             presentation: "modal",
           }}
         />
+
+        <Stack.Screen
+          name="(modals)/notifications"
+          options={{
+            presentation: "modal",
+          }}
+        />
+
+        <Stack.Screen
+          name="(modals)/electronic-receipt"
+          options={{
+            presentation: "modal",
+          }}
+        />
       </Stack>
     </>
   );

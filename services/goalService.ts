@@ -75,3 +75,20 @@ export async function updateSpendingGoal(
 export async function deleteSpendingGoal(goalId: string) {
   return databases.deleteDocument(DB_ID, SPENDING_GOALS_COL_ID, goalId);
 }
+
+export async function getActiveUserSpendingGoals(
+  userId: string
+): Promise<SpendingGoal[]> {
+  const response = await databases.listDocuments(
+    DB_ID,
+    SPENDING_GOALS_COL_ID,
+    [
+      Query.equal("userId", userId),
+      Query.equal("isActive", true),
+      Query.orderDesc("$createdAt"),
+      Query.limit(50),
+    ]
+  );
+
+  return response.documents as unknown as SpendingGoal[];
+}

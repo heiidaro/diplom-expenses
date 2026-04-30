@@ -39,6 +39,9 @@ import { Category, Expense } from "../../types/models";
 import { formatDate, formatMoney } from "../../utils/format";
 import { processDueRecurringExpenses } from "../../services/recurringExpenseService";
 import { saveCategoryRuleFromText } from "../../services/categoryRuleService";
+import { getUnreadNotificationsCount } from "../../services/notificationService";
+import { syncGoalNotifications } from "../../services/goalNotificationService";
+import { syncSupportReplyNotifications } from "../../services/supportNotificationService";
 
 export default function HomeScreen() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -52,6 +55,7 @@ export default function HomeScreen() {
   const [editNote, setEditNote] = useState("");
   const [editCategoryId, setEditCategoryId] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
     null
@@ -318,6 +322,14 @@ export default function HomeScreen() {
 
       const user = await account.get();
 
+      await Promise.all([
+        syncGoalNotifications(user.$id),
+        syncSupportReplyNotifications(user.$id),
+      ]);
+
+      const unreadCount = await getUnreadNotificationsCount(user.$id);
+      setUnreadNotificationsCount(unreadCount);
+
       await processDueRecurringExpenses(user.$id);
 
       const [loadedCategories, loadedExpenses] = await Promise.all([
@@ -456,6 +468,10 @@ export default function HomeScreen() {
       return "QR-чек";
     }
 
+    if (sourceType === "receipt_ocr") {
+      return "Электронный чек";
+    }
+
     return "расход";
   }
 
@@ -477,13 +493,20 @@ export default function HomeScreen() {
             <Text style={styles.title}>Мои расходы</Text>
           </View>
 
-          <View style={styles.iconButton}>
-            <Ionicons
-              name="notifications-outline"
-              size={22}
-              color={COLORS.text}
-            />
-          </View>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => router.push("/notifications")}
+          >
+            <Ionicons name="notifications-outline" size={22} color={COLORS.text} />
+
+            {unreadNotificationsCount > 0 ? (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>
+                  {unreadNotificationsCount > 9 ? "9+" : unreadNotificationsCount}
+                </Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
@@ -1394,6 +1417,23 @@ const styles = StyleSheet.create({
   deleteButtonText: {
     color: COLORS.danger,
     fontSize: 16,
+    fontWeight: "900",
+  },
+  notificationBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: COLORS.accent,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
+  },
+  notificationBadgeText: {
+    color: COLORS.white,
+    fontSize: 11,
     fontWeight: "900",
   },
 });

@@ -50,6 +50,25 @@ export default function AddExpenseScreen() {
 
           <TouchableOpacity
             style={styles.optionCard}
+            onPress={() => router.push("/electronic-receipt")}
+            activeOpacity={0.85}
+          >
+            <View style={styles.optionIcon}>
+              <Ionicons name="document-text-outline" size={26} color={COLORS.accent} />
+            </View>
+
+            <View style={styles.optionInfo}>
+              <Text style={styles.optionTitle}>Электронный чек</Text>
+              <Text style={styles.optionText} numberOfLines={2}>
+                Вставить текст или выбрать файл электронного чека
+              </Text>
+            </View>
+
+            <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.optionCard}
             onPress={() => router.push("/manual-expense")}
             activeOpacity={0.85}
           >
@@ -122,11 +141,19 @@ const styles = StyleSheet.create({
   optionCard: {
     backgroundColor: COLORS.card,
     borderRadius: 24,
-    padding: 16,
+    padding: 18,
     borderWidth: 1,
     borderColor: COLORS.border,
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: 14,
+    overflow: "hidden",
+  },
+  optionInfo: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 14,
+    marginRight: 10,
   },
   optionIcon: {
     width: 56,
@@ -138,11 +165,14 @@ const styles = StyleSheet.create({
     marginRight: 14,
   },
   optionText: {
-    flex: 1,
+    color: COLORS.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    flexShrink: 1,
   },
   optionTitle: {
     color: COLORS.text,
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "900",
     marginBottom: 5,
   },

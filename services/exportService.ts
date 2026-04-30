@@ -7,7 +7,7 @@ import { getCategoryName } from "./categoryService";
 function getSourceLabel(sourceType?: string): string {
   if (sourceType === "manual") return "Ручной ввод";
   if (sourceType === "receipt_qr") return "QR-чек";
-  if (sourceType === "receipt_ocr") return "Распознавание чека";
+  if (sourceType === "receipt_ocr") { return "Электронный чек";}
   if (sourceType === "recurring") return "Регулярный расход";
 
   return "Не указан";

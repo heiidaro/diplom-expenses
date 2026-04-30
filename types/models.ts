@@ -98,6 +98,10 @@ export interface SupportTicket {
   title: string;
   message: string;
   status?: "open" | "in_progress" | "closed" | string;
+
+  adminReply?: string;
+  adminReplyAt?: string;
+  isReplyRead?: boolean;
 }
 
 export interface SpendingGoal {
@@ -113,4 +117,18 @@ export interface SpendingGoal {
   endDate: string;
   isActive: boolean;
   notifyAtPercent?: number;
+}
+
+export interface AppNotification {
+  $id: string;
+  $createdAt?: string;
+  $updatedAt?: string;
+
+  userId: string;
+  title: string;
+  message: string;
+  type: "news" | "support" | "goal" | "system" | "recurring" | string;
+  isRead?: boolean;
+  relatedEntityId?: string;
+  relatedEntityType?: string;
 }
