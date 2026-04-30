@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import ExpenseDonutChart from "../../components/ExpenseDonutChart";
 import {
@@ -142,12 +142,12 @@ export default function HomeScreen() {
   }
 
   function formatPeriodDate(date: Date) {
-  return new Intl.DateTimeFormat("ru-RU", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(date);
-}
+    return new Intl.DateTimeFormat("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(date);
+  }
 
   function getCurrentPeriodTitle() {
     if (selectedPeriod === "week") {
@@ -507,6 +507,25 @@ export default function HomeScreen() {
           <Text style={styles.cardHint}>
             Нажмите на карточку, чтобы выбрать даты в календаре
           </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.goalButton}
+          onPress={() => router.push("/spending-goals")}
+          activeOpacity={0.88}
+        >
+          <View style={styles.goalButtonIcon}>
+            <Ionicons name="flag-outline" size={22} color={COLORS.accent} />
+          </View>
+
+          <View style={styles.goalButtonTextBox}>
+            <Text style={styles.goalButtonTitle}>Финансовые цели</Text>
+            <Text style={styles.goalButtonSubtitle}>
+              Установить лимит расходов на период
+            </Text>
+          </View>
+
+          <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
         </TouchableOpacity>
 
         <View style={styles.section}>
@@ -885,6 +904,52 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  goalButton: {
+    backgroundColor: COLORS.card,
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  goalButtonIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.accentSoft,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  goalButtonTextBox: {
+    flex: 1,
+  },
+  goalButtonTitle: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: "900",
+    marginBottom: 4,
+  },
+  goalButtonSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  button: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.accent,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  buttonText: {
+    marginLeft: 8,
+    color: COLORS.white,
+    fontSize: 16,
+  },
   calendarCard: {
     backgroundColor: COLORS.cardSecond,
     borderRadius: 22,

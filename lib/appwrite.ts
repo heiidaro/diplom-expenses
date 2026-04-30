@@ -25,6 +25,7 @@ export const EXPORT_REQUESTS_COL_ID = "export_requests";
 export const CATEGORY_RULES_COL_ID = "category_rules";
 export const RECURRING_EXPENSES_COL_ID = "recurring_expenses";
 export const RECEIPT_SCANS_COL_ID = "receipt_scans";
+export const SPENDING_GOALS_COL_ID = "spending_goals";
 
 export const FILES_BUCKET_ID = "698ded11003046f79899";
 

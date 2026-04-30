@@ -56,6 +56,13 @@ export default function RootLayout() {
             presentation: "modal",
           }}
         />
+
+        <Stack.Screen
+          name="(modals)/spending-goals"
+          options={{
+            presentation: "modal",
+          }}
+        />
       </Stack>
     </>
   );

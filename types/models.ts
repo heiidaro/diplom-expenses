@@ -99,3 +99,18 @@ export interface SupportTicket {
   message: string;
   status?: "open" | "in_progress" | "closed" | string;
 }
+
+export interface SpendingGoal {
+  $id: string;
+  $createdAt?: string;
+  $updatedAt?: string;
+
+  userId: string;
+  title: string;
+  limitAmount: number;
+  periodType: "month" | "year" | "custom";
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  notifyAtPercent?: number;
+}
