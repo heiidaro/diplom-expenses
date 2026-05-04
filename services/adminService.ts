@@ -87,6 +87,59 @@ export type AdminNews = {
   createdByUserId: string;
 };
 
+export type AdminUserStatsExport = {
+  user: AdminUser & {
+    expensesCount: number;
+    totalExpenseAmount: number;
+    goalsCount: number;
+    ticketsCount: number;
+    openTicketsCount: number;
+    inProgressTicketsCount: number;
+    closedTicketsCount: number;
+  };
+
+  expenses: any[];
+  goals: any[];
+  tickets: AdminSupportTicket[];
+  adminLogs: AdminLog[];
+};
+
+export type AdminAllUsersStatsExport = {
+  users: Array<
+    AdminUser & {
+      expensesCount: number;
+      totalExpenseAmount: number;
+      goalsCount: number;
+      ticketsCount: number;
+      openTicketsCount: number;
+      inProgressTicketsCount: number;
+      closedTicketsCount: number;
+    }
+  >;
+
+  tickets: AdminSupportTicket[];
+  adminLogs: AdminLog[];
+};
+
+export type AdminUserDetails = {
+  user: AdminUser;
+
+  stats: {
+    expensesCount: number;
+    totalExpenseAmount: number;
+    goalsCount: number;
+    ticketsCount: number;
+    openTicketsCount: number;
+    inProgressTicketsCount: number;
+    closedTicketsCount: number;
+    adminLogsCount: number;
+  };
+
+  latestTickets: AdminSupportTicket[];
+  latestAdminLogs: AdminLog[];
+};
+
+
 async function callAdminApi<T>(
   action: string,
   payload: Record<string, any> = {}
@@ -168,6 +221,12 @@ export async function getAdminUsers() {
   return result.users;
 }
 
+export async function getAdminUserDetails(userId: string) {
+  return callAdminApi<AdminUserDetails>("getUserDetails", {
+    userId,
+  });
+}
+
 export async function blockAdminUser(userId: string) {
   return callAdminApi("blockUser", {
     userId,
@@ -236,4 +295,14 @@ export async function getAdminLogs() {
   }>("listAdminLogs");
 
   return result.logs;
+}
+
+export async function getAdminUserStatsExport(userId: string) {
+  return callAdminApi<AdminUserStatsExport>("exportUserStats", {
+    userId,
+  });
+}
+
+export async function getAdminAllUsersStatsExport() {
+  return callAdminApi<AdminAllUsersStatsExport>("exportAllUsersStats");
 }

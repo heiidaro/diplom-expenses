@@ -1,8 +1,10 @@
 import { Stack } from "expo-router";
 import React from "react";
 import { StatusBar } from "react-native";
+import { useActivityHeartbeat } from "../hooks/useActivityHeartbeat";
 
 export default function RootLayout() {
+  useActivityHeartbeat();
   return (
     <>
       <StatusBar barStyle="light-content" />
@@ -105,6 +107,11 @@ export default function RootLayout() {
 
         <Stack.Screen
           name="(admin)/profile"
+          options={{ headerShown: false }}
+        />
+
+        <Stack.Screen
+          name="(admin)/user-detail"
           options={{ headerShown: false }}
         />
       </Stack>

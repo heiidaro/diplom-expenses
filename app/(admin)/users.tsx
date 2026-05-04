@@ -377,6 +377,26 @@ export default function AdminUsersScreen() {
           ) : (
             <View style={styles.userActionsBlock}>
               <TouchableOpacity
+                style={styles.userOpenButton}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(admin)/user-detail",
+                    params: {
+                      userId: user.userId,
+                    },
+                  } as any)
+                }
+                activeOpacity={0.85}
+              >
+                <View style={styles.userActionIcon}>
+                  <Ionicons name="person-circle-outline" size={18} color={COLORS.accent} />
+                </View>
+
+                <Text style={styles.userOpenButtonText}>Открыть карточку</Text>
+
+                <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={styles.userEditButton}
                 onPress={() => openEditModal(user)}
                 activeOpacity={0.85}
@@ -1049,5 +1069,23 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginLeft: 8,
     flex: 1,
+  },
+  userOpenButton: {
+    width: "100%",
+    minHeight: 52,
+    borderRadius: 16,
+    backgroundColor: COLORS.accentSoft,
+    borderWidth: 1,
+    borderColor: COLORS.accent,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+  },
+
+  userOpenButtonText: {
+    flex: 1,
+    color: COLORS.accent,
+    fontSize: 14,
+    fontWeight: "900",
   },
 });

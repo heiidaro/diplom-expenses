@@ -17,17 +17,37 @@ import {
   getAdminDashboardStats,
   getMeAdminStatus,
 } from "../../services/adminService";
+import { exportAdminAllUsersStatsToXlsx } from "../../services/adminStatsExportService";
 
 export default function AdminDashboardScreen() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [adminName, setAdminName] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isExportingAll, setIsExportingAll] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       loadDashboard();
     }, [])
   );
+
+  async function handleExportAllUsersStats() {
+    try {
+      setIsExportingAll(true);
+
+      await exportAdminAllUsersStatsToXlsx();
+
+      Alert.alert("Готово", "Файл статистики всех пользователей сформирован");
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert(
+        "Ошибка",
+        error?.message || "Не удалось экспортировать статистику"
+      );
+    } finally {
+      setIsExportingAll(false);
+    }
+  }
 
   async function loadDashboard() {
     try {
@@ -172,6 +192,24 @@ export default function AdminDashboardScreen() {
                 icon="checkmark-circle-outline"
               />
             </View>
+
+            <TouchableOpacity
+              style={[styles.exportAllButton, isExportingAll && styles.buttonDisabled]}
+              onPress={handleExportAllUsersStats}
+              disabled={isExportingAll}
+              activeOpacity={0.85}
+            >
+              {isExportingAll ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="download-outline" size={21} color="#FFFFFF" />
+                  <Text style={styles.exportAllButtonText}>
+                    Экспорт статистики всех пользователей
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
 
             <Text style={styles.sectionTitle}>Управление</Text>
 
@@ -365,5 +403,25 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 13,
     lineHeight: 18,
+  },
+  exportAllButton: {
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: COLORS.accent,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 22,
+  },
+
+  exportAllButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+
+  buttonDisabled: {
+    opacity: 0.7,
   },
 });
