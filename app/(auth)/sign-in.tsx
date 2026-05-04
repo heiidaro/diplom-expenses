@@ -13,46 +13,77 @@ import {
 } from "react-native";
 import { account } from "../../lib/appwrite";
 import { COLORS } from "../../lib/theme";
+import {
+  isAdminAccount,
+  isUserBlockedByProfile,
+  logoutCurrentSessionSafely,
+} from "../../services/blockedUserService";
 
 export default function SignInScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   async function handleSignIn() {
-    try {
-      if (!email.trim() || !password.trim()) {
-        Alert.alert("Ошибка", "Введите почту и пароль");
-        return;
-      }
-
-      await account.createEmailPasswordSession(email.trim(), password);
-
-      const currentUser = await account.get();
-
-      console.log("CURRENT USER AFTER LOGIN:", {
-        id: currentUser.$id,
-        email: currentUser.email,
-        labels: currentUser.labels,
-      });
-
-      const labels = Array.isArray(currentUser.labels)
-        ? currentUser.labels
-        : [];
-
-      if (labels.includes("admin")) {
-        router.replace("/(admin)/dashboard" as any);
-        return;
-      }
-
-      router.replace("/home");
-    } catch (error: any) {
-      console.error(error);
-      Alert.alert(
-        "Ошибка входа",
-        error?.message || "Проверьте почту и пароль"
-      );
+  try {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert("Ошибка", "Введите почту и пароль");
+      return;
     }
+
+    await account.createEmailPasswordSession(email.trim(), password);
+
+    const currentUser = await account.get();
+
+    console.log("CURRENT USER AFTER LOGIN:", {
+      id: currentUser.$id,
+      email: currentUser.email,
+      labels: currentUser.labels,
+    });
+
+    if (isAdminAccount(currentUser)) {
+      router.replace("/(admin)/dashboard" as any);
+      return;
+    }
+
+    const isBlocked = await isUserBlockedByProfile(currentUser.$id);
+
+    if (isBlocked) {
+      await logoutCurrentSessionSafely();
+
+      Alert.alert(
+        "Аккаунт заблокирован",
+        "Ваш аккаунт заблокирован. Обратитесь в поддержку."
+      );
+
+      router.replace("/");
+      return;
+    }
+
+    router.replace("/home");
+  } catch (error: any) {
+    console.error(error);
+
+    const message = String(error?.message || "").toLowerCase();
+
+    const isBlockedError =
+      message.includes("blocked") ||
+      message.includes("disabled") ||
+      message.includes("status");
+
+    if (isBlockedError) {
+      Alert.alert(
+        "Аккаунт заблокирован",
+        "Ваш аккаунт заблокирован. Обратитесь в поддержку."
+      );
+      return;
+    }
+
+    Alert.alert(
+      "Ошибка входа",
+      error?.message || "Проверьте почту и пароль"
+    );
   }
+}
 
   return (
     <SafeAreaView style={styles.safeArea}>

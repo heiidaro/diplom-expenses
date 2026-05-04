@@ -22,6 +22,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import {
+  isAdminAccount,
+  isUserBlockedByProfile,
+  logoutCurrentSessionSafely,
+} from "../../services/blockedUserService";
 import { account } from "../../lib/appwrite";
 import { COLORS } from "../../lib/theme";
 import {
@@ -324,13 +329,23 @@ export default function HomeScreen() {
 
       const user = await account.get();
 
-      await Promise.all([
-        syncGoalNotifications(user.$id),
-        syncSupportReplyNotifications(user.$id),
-      ]);
+      if (!isAdminAccount(user)) {
+        const isBlocked = await isUserBlockedByProfile(user.$id);
 
-      const unreadCount = await getUnreadNotificationsCount(user.$id);
-      setUnreadNotificationsCount(unreadCount);
+        if (isBlocked) {
+          await logoutCurrentSessionSafely();
+
+          Alert.alert(
+            "Аккаунт заблокирован",
+            "Ваш аккаунт заблокирован. Обратитесь в поддержку."
+          );
+
+          router.replace("/");
+          return;
+        }
+      }
+
+      await updateMyActivity("home");
 
       await processDueRecurringExpenses(user.$id);
 

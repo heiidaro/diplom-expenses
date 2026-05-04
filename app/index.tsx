@@ -1,12 +1,18 @@
 import { router } from "expo-router";
 import React, { useEffect } from "react";
 import {
+  Alert,
   SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import {
+  isAdminAccount,
+  isUserBlockedByProfile,
+  logoutCurrentSessionSafely,
+} from "../services/blockedUserService";
 import { account } from "../lib/appwrite";
 import { COLORS } from "../lib/theme";
 
@@ -19,12 +25,22 @@ export default function StartScreen() {
     try {
       const currentUser = await account.get();
 
-      const labels = Array.isArray(currentUser.labels)
-        ? currentUser.labels
-        : [];
-
-      if (labels.includes("admin")) {
+      if (isAdminAccount(currentUser)) {
         router.replace("/(admin)/dashboard" as any);
+        return;
+      }
+
+      const isBlocked = await isUserBlockedByProfile(currentUser.$id);
+
+      if (isBlocked) {
+        await logoutCurrentSessionSafely();
+
+        Alert.alert(
+          "Аккаунт заблокирован",
+          "Ваш аккаунт заблокирован. Обратитесь в поддержку."
+        );
+
+        router.replace("/");
         return;
       }
 
