@@ -98,10 +98,10 @@ export default function RootLayout() {
           options={{ headerShown: false }}
         />
 
-        {/* <Stack.Screen
+        <Stack.Screen
           name="(admin)/logs"
           options={{ headerShown: false }}
-        /> */}
+        />
 
         <Stack.Screen
           name="(admin)/profile"

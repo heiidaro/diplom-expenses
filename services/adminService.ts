@@ -56,10 +56,21 @@ export type AdminSupportTicket = {
 export type AdminLog = {
   $id: string;
   $createdAt?: string;
+
   adminUserId: string;
+  adminName?: string;
+  adminEmail?: string;
+
   actionType: string;
+
   targetUserId?: string;
+  targetUserName?: string;
+  targetUserEmail?: string;
+
   targetEntityId?: string;
+  targetEntityType?: string;
+  targetEntityTitle?: string;
+
   description: string;
 };
 

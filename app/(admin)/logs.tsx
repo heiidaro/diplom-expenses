@@ -118,9 +118,12 @@ export default function AdminLogsScreen() {
       return (
         log.description?.toLowerCase().includes(normalizedSearch) ||
         log.actionType?.toLowerCase().includes(normalizedSearch) ||
-        log.adminUserId?.toLowerCase().includes(normalizedSearch) ||
-        log.targetUserId?.toLowerCase().includes(normalizedSearch) ||
-        log.targetEntityId?.toLowerCase().includes(normalizedSearch)
+        log.adminName?.toLowerCase().includes(normalizedSearch) ||
+        log.adminEmail?.toLowerCase().includes(normalizedSearch) ||
+        log.targetUserName?.toLowerCase().includes(normalizedSearch) ||
+        log.targetUserEmail?.toLowerCase().includes(normalizedSearch) ||
+        log.targetEntityTitle?.toLowerCase().includes(normalizedSearch) ||
+        log.targetEntityType?.toLowerCase().includes(normalizedSearch)
       );
     });
   }, [logs, search]);
@@ -165,24 +168,32 @@ export default function AdminLogsScreen() {
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Администратор</Text>
             <Text style={styles.detailValue} numberOfLines={1}>
-              {item.adminUserId || "Нет данных"}
+              {item.adminName || "Администратор"}
+            </Text>
+            <Text style={styles.detailSubValue} numberOfLines={1}>
+              {item.adminEmail || "Email не найден"}
             </Text>
           </View>
 
-          {item.targetUserId ? (
+          {item.targetUserName || item.targetUserEmail ? (
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Пользователь</Text>
               <Text style={styles.detailValue} numberOfLines={1}>
-                {item.targetUserId}
+                {item.targetUserName || "Пользователь"}
+              </Text>
+              <Text style={styles.detailSubValue} numberOfLines={1}>
+                {item.targetUserEmail || "Email не найден"}
               </Text>
             </View>
           ) : null}
 
-          {item.targetEntityId ? (
+          {item.targetEntityTitle || item.targetEntityType ? (
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Объект</Text>
-              <Text style={styles.detailValue} numberOfLines={1}>
-                {item.targetEntityId}
+              <Text style={styles.detailLabel}>
+                {item.targetEntityType || "Объект"}
+              </Text>
+              <Text style={styles.detailValue} numberOfLines={2}>
+                {item.targetEntityTitle || "Без названия"}
               </Text>
             </View>
           ) : null}
@@ -492,5 +503,10 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 13,
     fontWeight: "800",
+  },
+  detailSubValue: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 3,
   },
 });
