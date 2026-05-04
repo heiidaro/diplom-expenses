@@ -77,6 +77,36 @@ export default function RootLayout() {
             presentation: "modal",
           }}
         />
+
+        <Stack.Screen
+          name="(admin)/dashboard"
+          options={{ headerShown: false }}
+        />
+
+        <Stack.Screen
+          name="(admin)/users"
+          options={{ headerShown: false }}
+        />
+
+        <Stack.Screen
+          name="(admin)/support"
+          options={{ headerShown: false }}
+        />
+
+        <Stack.Screen
+          name="(admin)/news"
+          options={{ headerShown: false }}
+        />
+
+        {/* <Stack.Screen
+          name="(admin)/logs"
+          options={{ headerShown: false }}
+        /> */}
+
+        <Stack.Screen
+          name="(admin)/profile"
+          options={{ headerShown: false }}
+        />
       </Stack>
     </>
   );

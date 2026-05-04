@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import ExpenseDonutChart from "../../components/ExpenseDonutChart";
+import { updateMyActivity } from "../../services/activityService";
 import {
   buildCategoryChartData,
   ChartPeriod,
@@ -312,6 +313,7 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      updateMyActivity("home");
       loadData();
     }, [])
   );

@@ -1,4 +1,5 @@
 import { router } from "expo-router";
+import React, { useEffect } from "react";
 import {
   SafeAreaView,
   StyleSheet,
@@ -6,23 +7,33 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { COLORS } from "../lib/theme";
-import React, { useEffect } from "react";
 import { account } from "../lib/appwrite";
+import { COLORS } from "../lib/theme";
 
 export default function StartScreen() {
-    useEffect(() => {
+  useEffect(() => {
     checkSession();
   }, []);
 
   async function checkSession() {
     try {
-      await account.get();
+      const currentUser = await account.get();
+
+      const labels = Array.isArray(currentUser.labels)
+        ? currentUser.labels
+        : [];
+
+      if (labels.includes("admin")) {
+        router.replace("/(admin)/dashboard" as any);
+        return;
+      }
+
       router.replace("/home");
     } catch {
-      // Пользователь не авторизован, остаемся на стартовом экране
+      // Пользователь не авторизован
     }
   }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -30,7 +41,7 @@ export default function StartScreen() {
           <Text style={styles.logo}>FinFlow</Text>
           <Text style={styles.title}>Автоматизированный учет расходов</Text>
           <Text style={styles.subtitle}>
-            QR-чеки, банковские выписки, регулярные расходы и автоматическое
+            QR-чеки, электронные чеки, регулярные расходы и автоматическое
             обучение категорий в одном приложении.
           </Text>
         </View>

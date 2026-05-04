@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
+import { updateMyActivity } from "../../services/activityService";
 import {
   Alert,
   SafeAreaView,
@@ -55,6 +56,7 @@ export default function ProfileScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      updateMyActivity("profile");
       loadProfileUser();
     }, [])
   );
@@ -74,11 +76,30 @@ export default function ProfileScreen() {
 
   async function handleLogout() {
     try {
-      await account.deleteSession("current");
+      try {
+        await account.deleteSession({
+          sessionId: "current",
+        } as any);
+      } catch (error: any) {
+        const message = String(error?.message || "");
+
+        const alreadyGuest =
+          message.includes("role: guests") ||
+          message.includes("missing scopes") ||
+          message.includes("account");
+
+        if (!alreadyGuest) {
+          throw error;
+        }
+      }
+
       router.replace("/");
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      Alert.alert("Ошибка", "Не удалось выйти из аккаунта");
+      Alert.alert(
+        "Ошибка",
+        error?.message || "Не удалось выйти из аккаунта"
+      );
     }
   }
 

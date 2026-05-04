@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
+import { updateMyActivity } from "../../services/activityService";
 import {
   ActivityIndicator,
   Alert,
@@ -75,6 +76,7 @@ export default function CategoriesScreen() {
   useFocusEffect(
     useCallback(() => {
       loadCategories();
+      updateMyActivity("categories");
     }, [])
   );
 

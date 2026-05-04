@@ -26,10 +26,31 @@ export default function SignInScreen() {
       }
 
       await account.createEmailPasswordSession(email.trim(), password);
+
+      const currentUser = await account.get();
+
+      console.log("CURRENT USER AFTER LOGIN:", {
+        id: currentUser.$id,
+        email: currentUser.email,
+        labels: currentUser.labels,
+      });
+
+      const labels = Array.isArray(currentUser.labels)
+        ? currentUser.labels
+        : [];
+
+      if (labels.includes("admin")) {
+        router.replace("/(admin)/dashboard" as any);
+        return;
+      }
+
       router.replace("/home");
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      Alert.alert("Ошибка входа", "Проверьте почту и пароль");
+      Alert.alert(
+        "Ошибка входа",
+        error?.message || "Проверьте почту и пароль"
+      );
     }
   }
 

@@ -31,6 +31,7 @@ export const SPENDING_GOALS_COL_ID = "spending_goals";
 export const NOTIFICATIONS_COL_ID = "notifications";
 export const PARSE_PDF_RECEIPT_FUNCTION_ID = "69f30c5f0014da059d4d";
 export const RECEIPT_FILES_BUCKET_ID = "698ded11003046f79899";
+export const ADMIN_API_FUNCTION_ID = "69f845dd003a5b548f64";
 
 export interface SupportTicket {
   $id: string;

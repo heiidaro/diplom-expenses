@@ -141,16 +141,43 @@ export default function SettingsScreen() {
 
   async function handleLogout() {
     try {
-      setIsLoggingOut(true);
+      try {
+        await account.deleteSession({
+          sessionId: "current",
+        } as any);
+      } catch (firstError: any) {
+        const message = String(firstError?.message || "");
 
-      await account.deleteSession("current");
+        const isAlreadyGuest =
+          message.includes("role: guests") ||
+          message.includes("missing scopes") ||
+          message.includes("account");
 
-      router.replace("/sign-in");
+        if (!isAlreadyGuest) {
+          try {
+            await account.deleteSession("current" as any);
+          } catch (secondError: any) {
+            const secondMessage = String(secondError?.message || "");
+
+            const isStillAlreadyGuest =
+              secondMessage.includes("role: guests") ||
+              secondMessage.includes("missing scopes") ||
+              secondMessage.includes("account");
+
+            if (!isStillAlreadyGuest) {
+              throw secondError;
+            }
+          }
+        }
+      }
+
+      router.replace("/");
     } catch (error: any) {
       console.error(error);
-      Alert.alert("Ошибка", error?.message || "Не удалось выйти из аккаунта");
-    } finally {
-      setIsLoggingOut(false);
+      Alert.alert(
+        "Ошибка",
+        error?.message || "Не удалось выйти из аккаунта"
+      );
     }
   }
 
