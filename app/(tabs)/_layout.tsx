@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tabs, router } from "expo-router";
 import React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "../../lib/theme";
 
 function AddButton() {
@@ -17,6 +18,10 @@ function AddButton() {
 }
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+
+  const bottomInset = Math.max(insets.bottom, 10);
+
   return (
     <Tabs
       initialRouteName="home"
@@ -25,7 +30,14 @@ export default function TabsLayout() {
         tabBarShowLabel: true,
         tabBarActiveTintColor: COLORS.accent,
         tabBarInactiveTintColor: COLORS.textMuted,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            bottom: bottomInset,
+            height: 76 + bottomInset,
+            paddingBottom: bottomInset,
+          },
+        ],
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarItemStyle: styles.tabBarItem,
       }}
@@ -119,15 +131,12 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 16,
     right: 16,
-    bottom: 18,
-    height: 76,
     backgroundColor: COLORS.card,
     borderTopWidth: 0,
     borderRadius: 28,
     borderWidth: 1,
     borderColor: COLORS.border,
     paddingTop: 10,
-    paddingBottom: 12,
   },
   tabBarItem: {
     height: 58,

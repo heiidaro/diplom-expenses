@@ -1,34 +1,40 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
-import { updateMyActivity } from "../../services/activityService";
 import {
   Alert,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { account } from "../../lib/appwrite";
 import { COLORS } from "../../lib/theme";
+import { updateMyActivity } from "../../services/activityService";
 import { getUserCategories } from "../../services/categoryService";
 import { getUserExpenses } from "../../services/expenseService";
 import { exportExpensesToCsv } from "../../services/exportService";
+import {
+  beginLogout,
+  deleteCurrentSessionSafely,
+  finishLogoutLater,
+  isGuestOrSessionError,
+} from "../../services/sessionGuardService";
 
 const profileItems = [
   {
     title: "Регулярные расходы",
     subtitle: "Автоматическое добавление повторяющихся трат",
     icon: "repeat-outline",
-    route: "/recurring-expenses",
+    route: "/(modals)/recurring-expenses",
   },
   {
     title: "Правила категорий",
     subtitle: "Автоматическое обучение по комментариям",
     icon: "sparkles-outline",
-    route: "/category-rules",
+    route: "/(modals)/category-rules",
   },
   {
     title: "Экспорт статистики",
@@ -40,13 +46,13 @@ const profileItems = [
     title: "Поддержка",
     subtitle: "Создать обращение в поддержку",
     icon: "chatbubble-ellipses-outline",
-    route: "/support",
+    route: "/(modals)/support",
   },
   {
     title: "Настройки",
     subtitle: "Имя, почта и пароль",
     icon: "settings-outline",
-    route: "/settings",
+    route: "/(modals)/settings",
   },
 ];
 
@@ -58,7 +64,7 @@ export default function ProfileScreen() {
     useCallback(() => {
       updateMyActivity("profile");
       loadProfileUser();
-    }, [])
+    }, []),
   );
 
   async function loadProfileUser() {
@@ -67,8 +73,11 @@ export default function ProfileScreen() {
 
       setUserName(user.name || "Пользователь");
       setUserEmail(user.email || "Email не указан");
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
       setUserName("Пользователь");
       setUserEmail("Email не указан");
     }
@@ -76,30 +85,25 @@ export default function ProfileScreen() {
 
   async function handleLogout() {
     try {
-      try {
-        await account.deleteSession({
-          sessionId: "current",
-        } as any);
-      } catch (error: any) {
-        const message = String(error?.message || "");
+      beginLogout();
 
-        const alreadyGuest =
-          message.includes("role: guests") ||
-          message.includes("missing scopes") ||
-          message.includes("account");
+      setUserName("");
+      setUserEmail("");
 
-        if (!alreadyGuest) {
-          throw error;
-        }
+      await deleteCurrentSessionSafely();
+
+      router.replace("/(auth)/sign-in" as any);
+
+      finishLogoutLater();
+    } catch (error: any) {
+      finishLogoutLater();
+
+      if (isGuestOrSessionError(error)) {
+        router.replace("/(auth)/sign-in" as any);
+        return;
       }
 
-      router.replace("/");
-    } catch (error: any) {
-      console.error(error);
-      Alert.alert(
-        "Ошибка",
-        error?.message || "Не удалось выйти из аккаунта"
-      );
+      Alert.alert("Ошибка", error?.message || "Не удалось выйти из аккаунта");
     }
   }
 
@@ -122,10 +126,14 @@ export default function ProfileScreen() {
         categories,
       });
     } catch (error: any) {
-      console.error(error);
+      if (isGuestOrSessionError(error)) {
+        router.replace("/(auth)/sign-in" as any);
+        return;
+      }
+
       Alert.alert(
         "Ошибка экспорта",
-        error?.message || "Не удалось сформировать файл"
+        error?.message || "Не удалось сформировать файл",
       );
     }
   }
@@ -146,9 +154,7 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>
-              {userName || "Пользователь"}
-            </Text>
+            <Text style={styles.profileName}>{userName || "Пользователь"}</Text>
 
             <Text style={styles.profileEmail}>
               {userEmail || "Email не указан"}
@@ -212,7 +218,7 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 20,
-    paddingBottom: 120,
+    paddingBottom: 160,
   },
   title: {
     color: COLORS.text,

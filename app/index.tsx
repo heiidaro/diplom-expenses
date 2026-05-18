@@ -1,20 +1,14 @@
 import { router } from "expo-router";
 import React, { useEffect } from "react";
-import {
-  Alert,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { account } from "../lib/appwrite";
+import { COLORS } from "../lib/theme";
 import {
   isAdminAccount,
   isUserBlockedByProfile,
   logoutCurrentSessionSafely,
 } from "../services/blockedUserService";
-import { account } from "../lib/appwrite";
-import { COLORS } from "../lib/theme";
 
 export default function StartScreen() {
   useEffect(() => {
@@ -37,7 +31,7 @@ export default function StartScreen() {
 
         Alert.alert(
           "Аккаунт заблокирован",
-          "Ваш аккаунт заблокирован. Обратитесь в поддержку."
+          "Ваш аккаунт заблокирован. Обратитесь в поддержку.",
         );
 
         router.replace("/");
@@ -54,7 +48,7 @@ export default function StartScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View>
-          <Text style={styles.logo}>FinFlow</Text>
+          <Text style={styles.logo}>Fynux</Text>
           <Text style={styles.title}>Автоматизированный учет расходов</Text>
           <Text style={styles.subtitle}>
             QR-чеки, электронные чеки, регулярные расходы и автоматическое

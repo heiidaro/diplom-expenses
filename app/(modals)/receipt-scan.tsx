@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,19 +13,21 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { account } from "../../lib/appwrite";
 import { COLORS } from "../../lib/theme";
+import {
+  findCategoryByText,
+  saveCategoryRuleFromText,
+} from "../../services/categoryRuleService";
 import { getUserCategories } from "../../services/categoryService";
 import {
   createExpenseFromParsedReceiptQr,
   parseReceiptQr,
 } from "../../services/receiptService";
+import { isGuestOrSessionError } from "../../services/sessionGuardService";
 import { Category, ParsedReceiptQr } from "../../types/models";
 import { formatDate, formatMoney } from "../../utils/format";
-import {
-  findCategoryByText,
-  saveCategoryRuleFromText,
-} from "../../services/categoryRuleService";
 
 export default function ReceiptScanScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -34,7 +35,7 @@ export default function ReceiptScanScreen() {
   const [scanned, setScanned] = useState(false);
 
   const [parsedReceipt, setParsedReceipt] = useState<ParsedReceiptQr | null>(
-    null
+    null,
   );
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
@@ -48,7 +49,7 @@ export default function ReceiptScanScreen() {
   function getDefaultCategoryId(loadedCategories: Category[]) {
     const otherCategory =
       loadedCategories.find((category) =>
-        category.name.toLowerCase().includes("другое")
+        category.name.toLowerCase().includes("другое"),
       ) || loadedCategories[0];
 
     return otherCategory?.$id || "";
@@ -92,7 +93,7 @@ export default function ReceiptScanScreen() {
             style: "cancel",
             onPress: () => router.back(),
           },
-        ]
+        ],
       );
     } finally {
       setIsProcessing(false);
@@ -145,8 +146,13 @@ export default function ReceiptScanScreen() {
         },
       ]);
     } catch (error: any) {
-      console.error(error);
-      Alert.alert("Ошибка", error?.message || "Не удалось сохранить расход");
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     } finally {
       setIsSaving(false);
     }
@@ -314,7 +320,8 @@ export default function ReceiptScanScreen() {
             />
 
             <Text style={styles.fieldHint}>
-              Если приложение уже знает похожий комментарий, категория выберется автоматически.
+              Если приложение уже знает похожий комментарий, категория выберется
+              автоматически.
             </Text>
 
             <Text style={styles.label}>Категория</Text>

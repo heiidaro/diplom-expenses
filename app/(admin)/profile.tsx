@@ -4,13 +4,13 @@ import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { account } from "../../lib/appwrite";
 import { COLORS } from "../../lib/theme";
 import { getMeAdminStatus } from "../../services/adminService";
@@ -24,7 +24,7 @@ export default function AdminProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       loadAdminProfile();
-    }, [])
+    }, []),
   );
 
   async function loadAdminProfile() {
@@ -36,9 +36,13 @@ export default function AdminProfileScreen() {
       setAdminName(result.admin.name || "Администратор");
       setAdminEmail(result.admin.email || "");
     } catch (error: any) {
-      console.error(error);
-      Alert.alert("Нет доступа", "Этот раздел доступен только администратору");
-      router.replace("/");
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     } finally {
       setIsLoading(false);
     }
@@ -67,32 +71,30 @@ export default function AdminProfileScreen() {
 
       router.replace("/");
     } catch (error: any) {
-      console.error(error);
-      Alert.alert(
-        "Ошибка",
-        error?.message || "Не удалось выйти из аккаунта"
-      );
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     } finally {
       setIsLogoutLoading(false);
     }
   }
 
   function confirmLogout() {
-    Alert.alert(
-      "Выйти из аккаунта?",
-      "Вы выйдете из профиля администратора.",
-      [
-        {
-          text: "Отмена",
-          style: "cancel",
-        },
-        {
-          text: "Выйти",
-          style: "destructive",
-          onPress: handleLogout,
-        },
-      ]
-    );
+    Alert.alert("Выйти из аккаунта?", "Вы выйдете из профиля администратора.", [
+      {
+        text: "Отмена",
+        style: "cancel",
+      },
+      {
+        text: "Выйти",
+        style: "destructive",
+        onPress: handleLogout,
+      },
+    ]);
   }
 
   function AccessItem(props: {
@@ -121,13 +123,19 @@ export default function AdminProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
             <Ionicons name="arrow-back" size={22} color={COLORS.text} />
           </TouchableOpacity>
 
           <Text style={styles.headerTitle}>Профиль администратора</Text>
 
-          <TouchableOpacity style={styles.backButton} onPress={loadAdminProfile}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={loadAdminProfile}
+          >
             <Ionicons name="refresh-outline" size={22} color={COLORS.text} />
           </TouchableOpacity>
         </View>

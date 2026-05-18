@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../../lib/theme";
 import {
   AdminLog,
@@ -80,7 +80,7 @@ export default function AdminLogsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadLogs();
-    }, [])
+    }, []),
   );
 
   async function loadLogs() {
@@ -95,7 +95,7 @@ export default function AdminLogsScreen() {
       console.error(error);
       Alert.alert(
         "Ошибка",
-        error?.message || "Не удалось загрузить журнал действий"
+        error?.message || "Не удалось загрузить журнал действий",
       );
       router.replace("/home");
     } finally {
@@ -154,15 +154,11 @@ export default function AdminLogsScreen() {
               {getActionLabel(item.actionType)}
             </Text>
 
-            <Text style={styles.logDate}>
-              {formatDate(item.$createdAt)}
-            </Text>
+            <Text style={styles.logDate}>{formatDate(item.$createdAt)}</Text>
           </View>
         </View>
 
-        <Text style={styles.logDescription}>
-          {item.description}
-        </Text>
+        <Text style={styles.logDescription}>{item.description}</Text>
 
         <View style={styles.detailsCard}>
           <View style={styles.detailRow}>
@@ -216,7 +212,10 @@ export default function AdminLogsScreen() {
         }
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
             <Ionicons name="arrow-back" size={22} color={COLORS.text} />
           </TouchableOpacity>
 
@@ -265,11 +264,7 @@ export default function AdminLogsScreen() {
           </View>
 
           <View style={styles.summaryIcon}>
-            <Ionicons
-              name="list-outline"
-              size={24}
-              color={COLORS.accent}
-            />
+            <Ionicons name="list-outline" size={24} color={COLORS.accent} />
           </View>
         </View>
 

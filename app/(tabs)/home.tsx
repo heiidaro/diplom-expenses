@@ -1,20 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import ExpenseDonutChart from "../../components/ExpenseDonutChart";
-import { updateMyActivity } from "../../services/activityService";
-import {
-  buildCategoryChartData,
-  ChartPeriod,
-  getExpensesByDateRange,
-  getExpensesByPeriod,
-} from "../../services/statisticsService";
 import {
   ActivityIndicator,
   Alert,
   Modal,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -22,13 +13,17 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import ExpenseDonutChart from "../../components/ExpenseDonutChart";
+import { account } from "../../lib/appwrite";
+import { COLORS } from "../../lib/theme";
+import { updateMyActivity } from "../../services/activityService";
 import {
   isAdminAccount,
   isUserBlockedByProfile,
   logoutCurrentSessionSafely,
 } from "../../services/blockedUserService";
-import { account } from "../../lib/appwrite";
-import { COLORS } from "../../lib/theme";
+import { saveCategoryRuleFromText } from "../../services/categoryRuleService";
 import {
   getCategoryColor,
   getCategoryName,
@@ -36,18 +31,20 @@ import {
 } from "../../services/categoryService";
 import {
   deleteExpense,
-  getCurrentMonthExpenses,
   getTotalAmount,
   getUserExpenses,
   updateExpense,
 } from "../../services/expenseService";
+import { processDueRecurringExpenses } from "../../services/recurringExpenseService";
+import { isGuestOrSessionError } from "../../services/sessionGuardService";
+import {
+  buildCategoryChartData,
+  ChartPeriod,
+  getExpensesByDateRange,
+  getExpensesByPeriod,
+} from "../../services/statisticsService";
 import { Category, Expense } from "../../types/models";
 import { formatDate, formatMoney } from "../../utils/format";
-import { processDueRecurringExpenses } from "../../services/recurringExpenseService";
-import { saveCategoryRuleFromText } from "../../services/categoryRuleService";
-import { getUnreadNotificationsCount } from "../../services/notificationService";
-import { syncGoalNotifications } from "../../services/goalNotificationService";
-import { syncSupportReplyNotifications } from "../../services/supportNotificationService";
 
 export default function HomeScreen() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -64,7 +61,7 @@ export default function HomeScreen() {
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
-    null
+    null,
   );
   const [selectedPeriod, setSelectedPeriod] = useState<ChartPeriod>("month");
 
@@ -86,7 +83,7 @@ export default function HomeScreen() {
   });
 
   const [rangeSelectionStep, setRangeSelectionStep] = useState<"start" | "end">(
-    "start"
+    "start",
   );
 
   const periodExpenses = useMemo(() => {
@@ -118,7 +115,7 @@ export default function HomeScreen() {
     }
 
     return sortedExpenses.filter(
-      (expense) => expense.categoryId === selectedCategoryId
+      (expense) => expense.categoryId === selectedCategoryId,
     );
   }, [periodExpenses, selectedCategoryId]);
 
@@ -170,7 +167,7 @@ export default function HomeScreen() {
 
     if (selectedPeriod === "custom") {
       return `${formatPeriodDate(periodStartDate)} — ${formatPeriodDate(
-        periodEndDate
+        periodEndDate,
       )}`;
     }
 
@@ -181,7 +178,7 @@ export default function HomeScreen() {
     setTempStartDate(periodStartDate);
     setTempEndDate(periodEndDate);
     setCalendarMonth(
-      new Date(periodStartDate.getFullYear(), periodStartDate.getMonth(), 1)
+      new Date(periodStartDate.getFullYear(), periodStartDate.getMonth(), 1),
     );
     setRangeSelectionStep("start");
     setIsPeriodModalVisible(true);
@@ -248,7 +245,7 @@ export default function HomeScreen() {
     // Делаем начало недели с понедельника.
     const firstWeekDay = (firstDayOfMonth.getDay() + 6) % 7;
 
-    const days: Array<Date | null> = [];
+    const days: (Date | null)[] = [];
 
     for (let i = 0; i < firstWeekDay; i += 1) {
       days.push(null);
@@ -275,11 +272,15 @@ export default function HomeScreen() {
     const nextMonth = new Date(
       calendarMonth.getFullYear(),
       calendarMonth.getMonth() + 1,
-      1
+      1,
     );
 
     const today = new Date();
-    const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const currentMonthStart = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      1,
+    );
 
     if (nextMonth > currentMonthStart) {
       return;
@@ -320,7 +321,7 @@ export default function HomeScreen() {
     useCallback(() => {
       updateMyActivity("home");
       loadData();
-    }, [])
+    }, []),
   );
 
   async function loadData() {
@@ -337,7 +338,7 @@ export default function HomeScreen() {
 
           Alert.alert(
             "Аккаунт заблокирован",
-            "Ваш аккаунт заблокирован. Обратитесь в поддержку."
+            "Ваш аккаунт заблокирован. Обратитесь в поддержку.",
           );
 
           router.replace("/");
@@ -356,9 +357,14 @@ export default function HomeScreen() {
 
       setCategories(loadedCategories);
       setExpenses(loadedExpenses);
-    } catch (error) {
-      console.error(error);
-      Alert.alert("Ошибка", "Не удалось загрузить расходы");
+    } catch (error: any) {
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -398,6 +404,7 @@ export default function HomeScreen() {
 
       const normalizedAmount = editAmount.replace(",", ".");
       const amountNumber = Number(normalizedAmount);
+      const roundedAmount = Math.round(amountNumber * 100) / 100;
 
       if (!editAmount.trim()) {
         Alert.alert("Ошибка", "Введите сумму расхода");
@@ -418,7 +425,7 @@ export default function HomeScreen() {
 
       await updateExpense({
         expenseId: selectedExpense.$id,
-        amount: amountNumber,
+        amount: roundedAmount,
         categoryId: editCategoryId,
         note: editNote.trim(),
       });
@@ -434,8 +441,13 @@ export default function HomeScreen() {
       closeEditExpenseModal();
       await loadData();
     } catch (error: any) {
-      console.error(error);
-      Alert.alert("Ошибка", error?.message || "Не удалось изменить расход");
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     } finally {
       setIsSaving(false);
     }
@@ -455,9 +467,17 @@ export default function HomeScreen() {
             await deleteExpense(expenseId);
             closeEditExpenseModal();
             await loadData();
-          } catch (error) {
-            console.error(error);
-            Alert.alert("Ошибка", "Не удалось удалить расход");
+          } catch (error: any) {
+            if (isGuestOrSessionError(error)) {
+              return;
+            }
+
+            console.log("Ошибка действия:", error);
+
+            Alert.alert(
+              "Ошибка",
+              error?.message || "Не удалось выполнить действие",
+            );
           }
         },
       },
@@ -514,12 +534,18 @@ export default function HomeScreen() {
             style={styles.iconButton}
             onPress={() => router.push("/notifications")}
           >
-            <Ionicons name="notifications-outline" size={22} color={COLORS.text} />
+            <Ionicons
+              name="notifications-outline"
+              size={22}
+              color={COLORS.text}
+            />
 
             {unreadNotificationsCount > 0 ? (
               <View style={styles.notificationBadge}>
                 <Text style={styles.notificationBadgeText}>
-                  {unreadNotificationsCount > 9 ? "9+" : unreadNotificationsCount}
+                  {unreadNotificationsCount > 9
+                    ? "9+"
+                    : unreadNotificationsCount}
                 </Text>
               </View>
             ) : null}
@@ -538,7 +564,11 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.calendarButton}>
-              <Ionicons name="calendar-outline" size={20} color={COLORS.accent} />
+              <Ionicons
+                name="calendar-outline"
+                size={20}
+                color={COLORS.accent}
+              />
             </View>
           </View>
 
@@ -573,7 +603,11 @@ export default function HomeScreen() {
 
           <View style={styles.automationGrid}>
             <View style={styles.smallCard}>
-              <Ionicons name="qr-code-outline" size={26} color={COLORS.accent} />
+              <Ionicons
+                name="qr-code-outline"
+                size={26}
+                color={COLORS.accent}
+              />
               <Text style={styles.smallCardTitle}>QR-чек</Text>
               <Text style={styles.smallCardText}>Сканирование чека</Text>
             </View>
@@ -584,8 +618,8 @@ export default function HomeScreen() {
                 size={26}
                 color={COLORS.accent}
               />
-                <Text style={styles.smallCardTitle}>Электронный чек</Text>
-                <Text style={styles.smallCardText}>Чек по операции</Text>
+              <Text style={styles.smallCardTitle}>Электронный чек</Text>
+              <Text style={styles.smallCardText}>Чек по операции</Text>
             </View>
 
             <View style={styles.smallCard}>
@@ -622,8 +656,8 @@ export default function HomeScreen() {
                 : selectedPeriod === "week"
                   ? "Операции за неделю"
                   : selectedPeriod === "year"
-                  ? "Операции за год"
-                  : "Операции за месяц"}
+                    ? "Операции за год"
+                    : "Операции за месяц"}
             </Text>
 
             {selectedCategoryId ? (
@@ -655,12 +689,12 @@ export default function HomeScreen() {
               {filteredExpenses.map((expense) => {
                 const categoryName = getCategoryName(
                   categories,
-                  expense.categoryId
+                  expense.categoryId,
                 );
 
                 const categoryColor = getCategoryColor(
                   categories,
-                  expense.categoryId
+                  expense.categoryId,
                 );
 
                 return (
@@ -687,8 +721,8 @@ export default function HomeScreen() {
                     <View style={styles.expenseInfo}>
                       <Text style={styles.expenseTitle}>{categoryName}</Text>
                       <Text style={styles.expenseSubtitle}>
-                        {expense.note || expense.merchantName || "Без описания"} ·{" "}
-                        {formatDate(expense.date)}
+                        {expense.note || expense.merchantName || "Без описания"}{" "}
+                        · {formatDate(expense.date)}
                       </Text>
                     </View>
 
@@ -723,78 +757,88 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.label}>Сумма</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="0"
-              placeholderTextColor={COLORS.textMuted}
-              keyboardType="decimal-pad"
-              value={editAmount}
-              onChangeText={setEditAmount}
-            />
-
-            <Text style={styles.label}>Комментарий</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Описание расхода"
-              placeholderTextColor={COLORS.textMuted}
-              value={editNote}
-              onChangeText={setEditNote}
-            />
-
-            <Text style={styles.label}>Категория</Text>
-            <View style={styles.categoryChips}>
-              {categories.map((category) => {
-                const isSelected = editCategoryId === category.$id;
-
-                return (
-                  <TouchableOpacity
-                    key={category.$id}
-                    style={[
-                      styles.categoryChip,
-                      isSelected && styles.categoryChipActive,
-                    ]}
-                    onPress={() => setEditCategoryId(category.$id)}
-                  >
-                    <View
-                      style={[
-                        styles.categoryDot,
-                        { backgroundColor: category.color || COLORS.accent },
-                      ]}
-                    />
-                    <Text
-                      style={[
-                        styles.categoryChipText,
-                        isSelected && styles.categoryChipTextActive,
-                      ]}
-                    >
-                      {category.name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <TouchableOpacity
-              style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
-              onPress={handleSaveExpenseChanges}
-              disabled={isSaving}
+            <ScrollView
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
             >
-              {isSaving ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.saveButtonText}>Сохранить изменения</Text>
-              )}
-            </TouchableOpacity>
+              <Text style={styles.label}>Сумма</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="0"
+                placeholderTextColor={COLORS.textMuted}
+                keyboardType="decimal-pad"
+                value={editAmount}
+                onChangeText={setEditAmount}
+              />
 
-            {selectedExpense ? (
+              <Text style={styles.label}>Комментарий</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Описание расхода"
+                placeholderTextColor={COLORS.textMuted}
+                value={editNote}
+                onChangeText={setEditNote}
+              />
+
+              <Text style={styles.label}>Категория</Text>
+              <View style={styles.categoryChips}>
+                {categories.map((category) => {
+                  const isSelected = editCategoryId === category.$id;
+
+                  return (
+                    <TouchableOpacity
+                      key={category.$id}
+                      style={[
+                        styles.categoryChip,
+                        isSelected && styles.categoryChipActive,
+                      ]}
+                      onPress={() => setEditCategoryId(category.$id)}
+                    >
+                      <View
+                        style={[
+                          styles.categoryDot,
+                          { backgroundColor: category.color || COLORS.accent },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.categoryChipText,
+                          isSelected && styles.categoryChipTextActive,
+                        ]}
+                      >
+                        {category.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
               <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={() => handleDeleteExpense(selectedExpense.$id)}
+                style={[
+                  styles.saveButton,
+                  isSaving && styles.saveButtonDisabled,
+                ]}
+                onPress={handleSaveExpenseChanges}
+                disabled={isSaving}
               >
-                <Text style={styles.deleteButtonText}>Удалить расход</Text>
+                {isSaving ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Сохранить изменения</Text>
+                )}
               </TouchableOpacity>
-            ) : null}
+
+              {selectedExpense ? (
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => handleDeleteExpense(selectedExpense.$id)}
+                >
+                  <Text style={styles.deleteButtonText}>Удалить расход</Text>
+                </TouchableOpacity>
+              ) : null}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -820,7 +864,8 @@ export default function HomeScreen() {
               </Text>
 
               <Text style={styles.periodPreviewValue}>
-                {formatPeriodDate(tempStartDate)} — {formatPeriodDate(tempEndDate)}
+                {formatPeriodDate(tempStartDate)} —{" "}
+                {formatPeriodDate(tempEndDate)}
               </Text>
             </View>
 
@@ -841,7 +886,11 @@ export default function HomeScreen() {
                   style={styles.calendarArrowButton}
                   onPress={goToNextMonth}
                 >
-                  <Ionicons name="chevron-forward" size={22} color={COLORS.text} />
+                  <Ionicons
+                    name="chevron-forward"
+                    size={22}
+                    color={COLORS.text}
+                  />
                 </TouchableOpacity>
               </View>
 
@@ -856,12 +905,18 @@ export default function HomeScreen() {
               <View style={styles.calendarGrid}>
                 {getCalendarDays(calendarMonth).map((date, index) => {
                   if (!date) {
-                    return <View key={`empty_${index}`} style={styles.calendarDay} />;
+                    return (
+                      <View key={`empty_${index}`} style={styles.calendarDay} />
+                    );
                   }
 
                   const isStart = isSameCalendarDay(date, tempStartDate);
                   const isEnd = isSameCalendarDay(date, tempEndDate);
-                  const isBetween = isDateBetween(date, tempStartDate, tempEndDate);
+                  const isBetween = isDateBetween(
+                    date,
+                    tempStartDate,
+                    tempEndDate,
+                  );
                   const isToday = isSameCalendarDay(date, new Date());
                   const isDisabled = isDateAfterToday(date);
 
@@ -944,6 +999,13 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  modalScroll: {
+    flexShrink: 1,
+  },
+
+  modalScrollContent: {
+    paddingBottom: 8,
+  },
   goalButton: {
     backgroundColor: COLORS.card,
     borderRadius: 22,
@@ -1166,7 +1228,7 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 20,
-    paddingBottom: 120,
+    paddingBottom: 160,
   },
   header: {
     flexDirection: "row",

@@ -1,12 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
+import { router } from "expo-router";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,21 +13,22 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { account } from "../../lib/appwrite";
 import { COLORS } from "../../lib/theme";
+import {
+  findCategoryByText,
+  saveCategoryRuleFromText,
+} from "../../services/categoryRuleService";
 import { getUserCategories } from "../../services/categoryService";
 import {
   createExpenseFromElectronicReceipt,
   ElectronicReceiptFile,
   ParsedElectronicReceipt,
   parseElectronicReceiptText,
-  uploadElectronicReceiptFile,
   parsePdfReceiptWithFunction,
+  uploadElectronicReceiptFile,
 } from "../../services/electronicReceiptService";
-import {
-  findCategoryByText,
-  saveCategoryRuleFromText,
-} from "../../services/categoryRuleService";
 import { Category } from "../../types/models";
 import { formatDate, formatMoney } from "../../utils/format";
 
@@ -40,7 +40,9 @@ function getSafeFileName(fileName: string) {
     .replace(/_+/g, "_");
 }
 
-async function preparePickedFileForUpload(asset: any): Promise<ElectronicReceiptFile> {
+async function preparePickedFileForUpload(
+  asset: any,
+): Promise<ElectronicReceiptFile> {
   const safeName = getSafeFileName(asset.name || `receipt_${Date.now()}.pdf`);
 
   const sourceInfo = await FileSystem.getInfoAsync(asset.uri, {
@@ -49,7 +51,7 @@ async function preparePickedFileForUpload(asset: any): Promise<ElectronicReceipt
 
   if (!sourceInfo.exists) {
     throw new Error(
-      "Выбранный файл недоступен. Попробуйте выбрать его снова из папки «Файлы» или сначала сохраните PDF на устройство."
+      "Выбранный файл недоступен. Попробуйте выбрать его снова из папки «Файлы» или сначала сохраните PDF на устройство.",
     );
   }
 
@@ -95,16 +97,15 @@ export default function ElectronicReceiptScreen() {
     return categories.find((category) => category.$id === selectedCategoryId);
   }, [categories, selectedCategoryId]);
 
-  const [selectedFile, setSelectedFile] = useState<ElectronicReceiptFile | null>(
-    null
-  );
+  const [selectedFile, setSelectedFile] =
+    useState<ElectronicReceiptFile | null>(null);
 
   const [uploadedReceiptFileId, setUploadedReceiptFileId] = useState("");
 
   function getDefaultCategoryId(loadedCategories: Category[]) {
     const otherCategory =
       loadedCategories.find((category) =>
-        category.name.toLowerCase().includes("другое")
+        category.name.toLowerCase().includes("другое"),
       ) || loadedCategories[0];
 
     return otherCategory?.$id || "";
@@ -124,20 +125,14 @@ export default function ElectronicReceiptScreen() {
 
   function isPdfFile(fileName: string, mimeType?: string) {
     return (
-      mimeType === "application/pdf" ||
-      fileName.toLowerCase().endsWith(".pdf")
+      mimeType === "application/pdf" || fileName.toLowerCase().endsWith(".pdf")
     );
   }
 
   async function handlePickReceiptFile() {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: [
-          "application/pdf",
-          "text/plain",
-          "text/html",
-          "text/csv",
-        ],
+        type: ["application/pdf", "text/plain", "text/html", "text/csv"],
         copyToCacheDirectory: true,
         multiple: false,
       });
@@ -172,21 +167,23 @@ export default function ElectronicReceiptScreen() {
       if (isPdfFile(file.name, file.mimeType)) {
         Alert.alert(
           "PDF выбран",
-          "Нажмите «Распознать чек», чтобы приложение автоматически извлекло сумму, дату и магазин из PDF."
+          "Нажмите «Распознать чек», чтобы приложение автоматически извлекло сумму, дату и магазин из PDF.",
         );
         return;
       }
 
       Alert.alert(
         "Файл выбран",
-        "Файл будет прикреплен к расходу после сохранения"
+        "Файл будет прикреплен к расходу после сохранения",
       );
     } catch (error: any) {
-      console.error(error);
-      Alert.alert(
-        "Ошибка",
-        error?.message || "Не удалось выбрать файл электронного чека"
-      );
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     }
   }
 
@@ -202,9 +199,13 @@ export default function ElectronicReceiptScreen() {
 
       if (rawText.trim()) {
         parsed = parseElectronicReceiptText(rawText);
-      } else if (selectedFile && isPdfFile(selectedFile.name, selectedFile.mimeType)) {
+      } else if (
+        selectedFile &&
+        isPdfFile(selectedFile.name, selectedFile.mimeType)
+      ) {
         if (!currentUploadedFileId) {
-          currentUploadedFileId = await uploadElectronicReceiptFile(selectedFile);
+          currentUploadedFileId =
+            await uploadElectronicReceiptFile(selectedFile);
           setUploadedReceiptFileId(currentUploadedFileId);
         }
 
@@ -213,7 +214,7 @@ export default function ElectronicReceiptScreen() {
       } else {
         Alert.alert(
           "Нет данных",
-          "Вставьте текст электронного чека или выберите PDF-файл"
+          "Вставьте текст электронного чека или выберите PDF-файл",
         );
         return;
       }
@@ -228,14 +229,16 @@ export default function ElectronicReceiptScreen() {
       setNote(parsed.note);
 
       setSelectedCategoryId(
-        matchedCategoryId || getDefaultCategoryId(loadedCategories)
+        matchedCategoryId || getDefaultCategoryId(loadedCategories),
       );
     } catch (error: any) {
-      console.error(error);
-      Alert.alert(
-        "Не удалось разобрать чек",
-        error?.message || "Проверьте электронный чек"
-      );
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     } finally {
       setIsParsing(false);
     }
@@ -285,11 +288,13 @@ export default function ElectronicReceiptScreen() {
         },
       ]);
     } catch (error: any) {
-      console.error(error);
-      Alert.alert(
-        "Ошибка",
-        error?.message || "Не удалось сохранить расход"
-      );
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     } finally {
       setIsSaving(false);
     }
@@ -309,7 +314,10 @@ export default function ElectronicReceiptScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
             <Ionicons name="arrow-back" size={22} color={COLORS.text} />
           </TouchableOpacity>
 
@@ -326,8 +334,8 @@ export default function ElectronicReceiptScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.infoTitle}>Добавление по тексту чека</Text>
             <Text style={styles.infoText}>
-              Вставьте текст электронного чека. Приложение попробует найти сумму,
-              дату и организацию автоматически.
+              Вставьте текст электронного чека. Приложение попробует найти
+              сумму, дату и организацию автоматически.
             </Text>
           </View>
         </View>
@@ -505,7 +513,11 @@ export default function ElectronicReceiptScreen() {
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <>
-                  <Ionicons name="checkmark-outline" size={20} color="#FFFFFF" />
+                  <Ionicons
+                    name="checkmark-outline"
+                    size={20}
+                    color="#FFFFFF"
+                  />
                   <Text style={styles.primaryButtonText}>Сохранить расход</Text>
                 </>
               )}

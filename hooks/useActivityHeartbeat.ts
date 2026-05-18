@@ -2,6 +2,10 @@ import { usePathname } from "expo-router";
 import { useEffect, useMemo, useRef } from "react";
 import { AppState, AppStateStatus } from "react-native";
 import { updateMyActivity } from "../services/activityService";
+import {
+  isGuestOrSessionError,
+  isLogoutInProgress,
+} from "../services/sessionGuardService";
 
 const HEARTBEAT_INTERVAL_MS = 60_000;
 
@@ -9,7 +13,9 @@ function isAuthPath(pathname: string) {
   return (
     pathname === "/" ||
     pathname.includes("sign-in") ||
-    pathname.includes("sign-up")
+    pathname.includes("sign-up") ||
+    pathname.includes("forgot-password") ||
+    pathname.includes("reset-password")
   );
 }
 
@@ -54,29 +60,6 @@ export function useActivityHeartbeat() {
     return getScreenName(pathname || "");
   }, [pathname]);
 
-  async function sendActivity(force = false) {
-    if (!pathname || isAuthPath(pathname)) {
-      return;
-    }
-
-    if (appStateRef.current !== "active") {
-      return;
-    }
-
-    const now = Date.now();
-    const isSameScreen = lastScreenRef.current === screenName;
-    const isTooSoon = now - lastSentAtRef.current < 55_000;
-
-    if (!force && isSameScreen && isTooSoon) {
-      return;
-    }
-
-    lastSentAtRef.current = now;
-    lastScreenRef.current = screenName;
-
-    await updateMyActivity(screenName);
-  }
-
   function stopHeartbeat() {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -84,8 +67,48 @@ export function useActivityHeartbeat() {
     }
   }
 
+  async function sendActivity(force = false) {
+    try {
+      if (isLogoutInProgress()) {
+        stopHeartbeat();
+        return;
+      }
+
+      if (!pathname || isAuthPath(pathname)) {
+        return;
+      }
+
+      if (appStateRef.current !== "active") {
+        return;
+      }
+
+      const now = Date.now();
+      const isSameScreen = lastScreenRef.current === screenName;
+      const isTooSoon = now - lastSentAtRef.current < 55_000;
+
+      if (!force && isSameScreen && isTooSoon) {
+        return;
+      }
+
+      lastSentAtRef.current = now;
+      lastScreenRef.current = screenName;
+
+      await updateMyActivity(screenName);
+    } catch (error: any) {
+      if (isGuestOrSessionError(error) || isLogoutInProgress()) {
+        return;
+      }
+
+      console.log("Не удалось отправить heartbeat активности", error);
+    }
+  }
+
   function startHeartbeat() {
     stopHeartbeat();
+
+    if (isLogoutInProgress()) {
+      return;
+    }
 
     intervalRef.current = setInterval(() => {
       sendActivity(true);

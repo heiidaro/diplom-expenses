@@ -6,7 +6,6 @@ import {
   Alert,
   Modal,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../../lib/theme";
 import {
   AdminSupportTicket,
@@ -77,7 +77,7 @@ export default function AdminSupportScreen() {
   useFocusEffect(
     useCallback(() => {
       loadTickets();
-    }, [])
+    }, []),
   );
 
   async function loadTickets() {
@@ -90,10 +90,7 @@ export default function AdminSupportScreen() {
       setTickets(loadedTickets);
     } catch (error: any) {
       console.error(error);
-      Alert.alert(
-        "Ошибка",
-        error?.message || "Не удалось загрузить обращения"
-      );
+      Alert.alert("Ошибка", error?.message || "Не удалось загрузить обращения");
       router.replace("/home");
     } finally {
       setIsLoading(false);
@@ -147,14 +144,11 @@ export default function AdminSupportScreen() {
         "Готово",
         closeAfterReply
           ? "Ответ отправлен, обращение закрыто"
-          : "Ответ отправлен пользователю"
+          : "Ответ отправлен пользователю",
       );
     } catch (error: any) {
       console.error(error);
-      Alert.alert(
-        "Ошибка",
-        error?.message || "Не удалось отправить ответ"
-      );
+      Alert.alert("Ошибка", error?.message || "Не удалось отправить ответ");
     } finally {
       setIsSendingReply(false);
     }
@@ -174,7 +168,7 @@ export default function AdminSupportScreen() {
           style: "destructive",
           onPress: () => handleCloseTicket(ticket),
         },
-      ]
+      ],
     );
   }
 
@@ -192,10 +186,7 @@ export default function AdminSupportScreen() {
       Alert.alert("Готово", "Обращение закрыто");
     } catch (error: any) {
       console.error(error);
-      Alert.alert(
-        "Ошибка",
-        error?.message || "Не удалось закрыть обращение"
-      );
+      Alert.alert("Ошибка", error?.message || "Не удалось закрыть обращение");
     } finally {
       setIsClosingTicket(false);
     }
@@ -217,10 +208,7 @@ export default function AdminSupportScreen() {
     });
   }, [tickets, search]);
 
-  function FilterButton(props: {
-    value: TicketFilter;
-    label: string;
-  }) {
+  function FilterButton(props: { value: TicketFilter; label: string }) {
     const isActive = filter === props.value;
 
     return (
@@ -298,7 +286,9 @@ export default function AdminSupportScreen() {
         <View style={styles.ticketMetaBox}>
           <View style={styles.metaItem}>
             <Text style={styles.metaLabel}>Создано</Text>
-            <Text style={styles.metaValue}>{formatDate(ticket.$createdAt)}</Text>
+            <Text style={styles.metaValue}>
+              {formatDate(ticket.$createdAt)}
+            </Text>
           </View>
 
           <View style={styles.metaItem}>
@@ -329,11 +319,7 @@ export default function AdminSupportScreen() {
             </Text>
           </View>
 
-          <Ionicons
-            name="chevron-forward"
-            size={20}
-            color={COLORS.textMuted}
-          />
+          <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
         </View>
       </TouchableOpacity>
     );
@@ -342,7 +328,7 @@ export default function AdminSupportScreen() {
   useFocusEffect(
     useCallback(() => {
       loadTickets();
-    }, [filter])
+    }, [filter]),
   );
 
   return (
@@ -359,7 +345,10 @@ export default function AdminSupportScreen() {
         }
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
             <Ionicons name="arrow-back" size={22} color={COLORS.text} />
           </TouchableOpacity>
 
@@ -514,7 +503,8 @@ export default function AdminSupportScreen() {
                   />
                   <Text style={styles.closedText}>
                     Обращение закрыто. Новый ответ можно отправить только после
-                    изменения статуса в базе или повторного обращения пользователя.
+                    изменения статуса в базе или повторного обращения
+                    пользователя.
                   </Text>
                 </View>
               ) : (
@@ -547,9 +537,7 @@ export default function AdminSupportScreen() {
                           size={19}
                           color="#FFFFFF"
                         />
-                        <Text style={styles.primaryButtonText}>
-                          Ответить
-                        </Text>
+                        <Text style={styles.primaryButtonText}>Ответить</Text>
                       </>
                     )}
                   </TouchableOpacity>

@@ -5,21 +5,21 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../../lib/theme";
-import { exportAdminUserStatsToXlsx } from "../../services/adminStatsExportService";
 import {
   AdminUserDetails,
   blockAdminUser,
   getAdminUserDetails,
   unblockAdminUser,
 } from "../../services/adminService";
+import { exportAdminUserStatsToXlsx } from "../../services/adminStatsExportService";
 
 function formatDate(value?: string) {
   if (!value) return "Нет данных";
@@ -90,7 +90,7 @@ export default function AdminUserDetailScreen() {
   useFocusEffect(
     useCallback(() => {
       loadDetails();
-    }, [userId])
+    }, [userId]),
   );
 
   async function handleExportUserStats() {
@@ -106,7 +106,7 @@ export default function AdminUserDetailScreen() {
       console.error(error);
       Alert.alert(
         "Ошибка",
-        error?.message || "Не удалось экспортировать статистику"
+        error?.message || "Не удалось экспортировать статистику",
       );
     } finally {
       setIsExporting(false);
@@ -129,7 +129,7 @@ export default function AdminUserDetailScreen() {
       console.error(error);
       Alert.alert(
         "Ошибка",
-        error?.message || "Не удалось загрузить карточку пользователя"
+        error?.message || "Не удалось загрузить карточку пользователя",
       );
       router.back();
     } finally {
@@ -152,13 +152,15 @@ export default function AdminUserDetailScreen() {
     if (isAdmin) {
       Alert.alert(
         "Недоступно",
-        "Данные администратора нельзя блокировать или изменять"
+        "Данные администратора нельзя блокировать или изменять",
       );
       return;
     }
 
     Alert.alert(
-      user.isBlocked ? "Разблокировать пользователя?" : "Заблокировать пользователя?",
+      user.isBlocked
+        ? "Разблокировать пользователя?"
+        : "Заблокировать пользователя?",
       user.isBlocked
         ? `Пользователь ${user.email} снова сможет пользоваться приложением.`
         : `Пользователь ${user.email} больше не сможет войти в приложение.`,
@@ -172,7 +174,7 @@ export default function AdminUserDetailScreen() {
           style: user.isBlocked ? "default" : "destructive",
           onPress: handleToggleBlock,
         },
-      ]
+      ],
     );
   }
 
@@ -195,7 +197,7 @@ export default function AdminUserDetailScreen() {
       console.error(error);
       Alert.alert(
         "Ошибка",
-        error?.message || "Не удалось изменить статус пользователя"
+        error?.message || "Не удалось изменить статус пользователя",
       );
     } finally {
       setIsActionLoading(false);
@@ -249,7 +251,10 @@ export default function AdminUserDetailScreen() {
         }
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
             <Ionicons name="arrow-back" size={22} color={COLORS.text} />
           </TouchableOpacity>
 
@@ -321,7 +326,9 @@ export default function AdminUserDetailScreen() {
 
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Последний онлайн</Text>
-                <Text style={styles.infoValue}>{formatDate(user.lastSeenAt)}</Text>
+                <Text style={styles.infoValue}>
+                  {formatDate(user.lastSeenAt)}
+                </Text>
               </View>
 
               <View style={styles.infoRow}>
@@ -333,7 +340,9 @@ export default function AdminUserDetailScreen() {
 
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Создан</Text>
-                <Text style={styles.infoValue}>{formatDate(user.createdAt)}</Text>
+                <Text style={styles.infoValue}>
+                  {formatDate(user.createdAt)}
+                </Text>
               </View>
             </View>
 
@@ -366,7 +375,10 @@ export default function AdminUserDetailScreen() {
             </View>
 
             <TouchableOpacity
-              style={[styles.exportButton, isExporting && styles.buttonDisabled]}
+              style={[
+                styles.exportButton,
+                isExporting && styles.buttonDisabled,
+              ]}
               onPress={handleExportUserStats}
               disabled={isExporting}
               activeOpacity={0.85}
@@ -376,7 +388,9 @@ export default function AdminUserDetailScreen() {
               ) : (
                 <>
                   <Ionicons name="download-outline" size={21} color="#FFFFFF" />
-                  <Text style={styles.exportButtonText}>Экспортировать статистику</Text>
+                  <Text style={styles.exportButtonText}>
+                    Экспортировать статистику
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
@@ -421,9 +435,7 @@ export default function AdminUserDetailScreen() {
                       {getActionLabel(log.actionType)}
                     </Text>
 
-                    <Text style={styles.logDescription}>
-                      {log.description}
-                    </Text>
+                    <Text style={styles.logDescription}>{log.description}</Text>
 
                     <Text style={styles.logDate}>
                       {formatDate(log.$createdAt)}
@@ -466,7 +478,11 @@ export default function AdminUserDetailScreen() {
                 ) : (
                   <>
                     <Ionicons
-                      name={user.isBlocked ? "checkmark-circle-outline" : "ban-outline"}
+                      name={
+                        user.isBlocked
+                          ? "checkmark-circle-outline"
+                          : "ban-outline"
+                      }
                       size={21}
                       color={user.isBlocked ? "#10B981" : COLORS.danger}
                     />

@@ -6,7 +6,6 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,15 +13,16 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { account } from "../../lib/appwrite";
 import { COLORS } from "../../lib/theme";
-import { getUserCategories } from "../../services/categoryService";
-import { createManualExpense } from "../../services/expenseService";
-import { Category } from "../../types/models";
 import {
   findCategoryByText,
   saveCategoryRuleFromText,
 } from "../../services/categoryRuleService";
+import { getUserCategories } from "../../services/categoryService";
+import { createManualExpense } from "../../services/expenseService";
+import { Category } from "../../types/models";
 
 export default function ManualExpenseScreen() {
   const [amount, setAmount] = useState("");
@@ -48,14 +48,19 @@ export default function ManualExpenseScreen() {
       if (userCategories.length > 0) {
         const otherCategory =
           userCategories.find((category) =>
-            category.name.toLowerCase().includes("другое")
+            category.name.toLowerCase().includes("другое"),
           ) || userCategories[0];
 
         setSelectedCategoryId(otherCategory.$id);
       }
-    } catch (error) {
-      console.error(error);
-      Alert.alert("Ошибка", "Не удалось загрузить категории");
+    } catch (error: any) {
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     } finally {
       setIsLoading(false);
     }
@@ -65,6 +70,7 @@ export default function ManualExpenseScreen() {
     try {
       const normalizedAmount = amount.replace(",", ".");
       const amountNumber = Number(normalizedAmount);
+      const roundedAmount = Math.round(amountNumber * 100) / 100;
 
       if (!amount.trim()) {
         Alert.alert("Ошибка", "Введите сумму расхода");
@@ -87,7 +93,7 @@ export default function ManualExpenseScreen() {
 
       await createManualExpense({
         userId: user.$id,
-        amount: amountNumber,
+        amount: roundedAmount,
         categoryId: selectedCategoryId,
         note: note.trim(),
         date: new Date().toISOString(),
@@ -106,12 +112,13 @@ export default function ManualExpenseScreen() {
         },
       ]);
     } catch (error: any) {
-      console.error(error);
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
 
-      Alert.alert(
-        "Ошибка",
-        error?.message || "Не удалось сохранить расход"
-      );
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     } finally {
       setIsSaving(false);
     }
@@ -123,7 +130,11 @@ export default function ManualExpenseScreen() {
         style={styles.keyboard}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <ScrollView contentContainerStyle={styles.container}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.header}>
             <TouchableOpacity
               style={styles.closeButton}
@@ -214,7 +225,9 @@ export default function ManualExpenseScreen() {
                         <View
                           style={[
                             styles.categoryDot,
-                            { backgroundColor: category.color || COLORS.accent },
+                            {
+                              backgroundColor: category.color || COLORS.accent,
+                            },
                           ]}
                         />
                         <Text
@@ -239,8 +252,9 @@ export default function ManualExpenseScreen() {
                 color={COLORS.accent}
               />
               <Text style={styles.infoText}>
-                После сохранения приложение запомнит связь между комментарием и категорией.
-                В следующий раз категория сможет подставиться автоматически.
+                После сохранения приложение запомнит связь между комментарием и
+                категорией. В следующий раз категория сможет подставиться
+                автоматически.
               </Text>
             </View>
 
@@ -272,7 +286,7 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   header: {
     flexDirection: "row",

@@ -4,7 +4,6 @@ import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,8 +11,15 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { account } from "../../lib/appwrite";
 import { COLORS } from "../../lib/theme";
+import {
+  beginLogout,
+  deleteCurrentSessionSafely,
+  finishLogoutLater,
+  isGuestOrSessionError,
+} from "../../services/sessionGuardService";
 
 interface UserData {
   $id: string;
@@ -36,7 +42,7 @@ export default function SettingsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadUser();
-    }, [])
+    }, []),
   );
 
   async function loadUser() {
@@ -53,10 +59,14 @@ export default function SettingsScreen() {
 
       setName(currentUser.name || "");
     } catch (error: any) {
-      console.error(error);
+      if (isGuestOrSessionError(error)) {
+        router.replace("/");
+        return;
+      }
+
       Alert.alert(
         "Ошибка",
-        error?.message || "Не удалось загрузить данные пользователя"
+        error?.message || "Не удалось загрузить данные пользователя",
       );
     } finally {
       setIsLoading(false);
@@ -82,7 +92,6 @@ export default function SettingsScreen() {
 
       Alert.alert("Готово", "Имя пользователя обновлено");
     } catch (error: any) {
-      console.error(error);
       Alert.alert("Ошибка", error?.message || "Не удалось обновить имя");
     } finally {
       setIsSavingName(false);
@@ -115,11 +124,7 @@ export default function SettingsScreen() {
 
       Alert.alert("Готово", "Пароль успешно изменен");
     } catch (error: any) {
-      console.error(error);
-      Alert.alert(
-        "Ошибка",
-        error?.message || "Не удалось изменить пароль"
-      );
+      Alert.alert("Ошибка", error?.message || "Не удалось изменить пароль");
     } finally {
       setIsSavingPassword(false);
     }
@@ -141,43 +146,26 @@ export default function SettingsScreen() {
 
   async function handleLogout() {
     try {
-      try {
-        await account.deleteSession({
-          sessionId: "current",
-        } as any);
-      } catch (firstError: any) {
-        const message = String(firstError?.message || "");
+      beginLogout();
 
-        const isAlreadyGuest =
-          message.includes("role: guests") ||
-          message.includes("missing scopes") ||
-          message.includes("account");
+      setIsLoggingOut(true);
 
-        if (!isAlreadyGuest) {
-          try {
-            await account.deleteSession("current" as any);
-          } catch (secondError: any) {
-            const secondMessage = String(secondError?.message || "");
-
-            const isStillAlreadyGuest =
-              secondMessage.includes("role: guests") ||
-              secondMessage.includes("missing scopes") ||
-              secondMessage.includes("account");
-
-            if (!isStillAlreadyGuest) {
-              throw secondError;
-            }
-          }
-        }
-      }
+      await deleteCurrentSessionSafely();
 
       router.replace("/");
+
+      finishLogoutLater();
     } catch (error: any) {
-      console.error(error);
-      Alert.alert(
-        "Ошибка",
-        error?.message || "Не удалось выйти из аккаунта"
-      );
+      finishLogoutLater();
+
+      if (isGuestOrSessionError(error)) {
+        router.replace("/");
+        return;
+      }
+
+      Alert.alert("Ошибка", error?.message || "Не удалось выйти из аккаунта");
+    } finally {
+      setIsLoggingOut(false);
     }
   }
 
@@ -185,7 +173,10 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
             <Ionicons name="arrow-back" size={22} color={COLORS.text} />
           </TouchableOpacity>
 
@@ -298,7 +289,10 @@ export default function SettingsScreen() {
             </View>
 
             <TouchableOpacity
-              style={[styles.logoutButton, isLoggingOut && styles.saveButtonDisabled]}
+              style={[
+                styles.logoutButton,
+                isLoggingOut && styles.saveButtonDisabled,
+              ]}
               onPress={confirmLogout}
               disabled={isLoggingOut}
             >
@@ -306,7 +300,11 @@ export default function SettingsScreen() {
                 <ActivityIndicator color={COLORS.danger} />
               ) : (
                 <>
-                  <Ionicons name="log-out-outline" size={22} color={COLORS.danger} />
+                  <Ionicons
+                    name="log-out-outline"
+                    size={22}
+                    color={COLORS.danger}
+                  />
                   <Text style={styles.logoutButtonText}>Выйти из аккаунта</Text>
                 </>
               )}

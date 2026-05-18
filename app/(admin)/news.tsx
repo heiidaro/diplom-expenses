@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../../lib/theme";
 import {
   AdminNews,
@@ -73,7 +73,7 @@ export default function AdminNewsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadNews();
-    }, [])
+    }, []),
   );
 
   async function loadNews() {
@@ -86,10 +86,7 @@ export default function AdminNewsScreen() {
       setNews(loadedNews);
     } catch (error: any) {
       console.error(error);
-      Alert.alert(
-        "Ошибка",
-        error?.message || "Не удалось загрузить новости"
-      );
+      Alert.alert("Ошибка", error?.message || "Не удалось загрузить новости");
       router.replace("/home");
     } finally {
       setIsLoading(false);
@@ -130,13 +127,13 @@ export default function AdminNewsScreen() {
 
       Alert.alert(
         "Готово",
-        "Новость опубликована, пользователи получат уведомление"
+        "Новость опубликована, пользователи получат уведомление",
       );
     } catch (error: any) {
       console.error(error);
       Alert.alert(
         "Ошибка",
-        error?.message || "Не удалось опубликовать новость"
+        error?.message || "Не удалось опубликовать новость",
       );
     } finally {
       setIsPublishing(false);
@@ -157,11 +154,7 @@ export default function AdminNewsScreen() {
     });
   }, [news, search]);
 
-  function TypeButton(props: {
-    value: NewsType;
-    label: string;
-    icon: any;
-  }) {
+  function TypeButton(props: { value: NewsType; label: string; icon: any }) {
     const isActive = type === props.value;
 
     return (
@@ -202,11 +195,7 @@ export default function AdminNewsScreen() {
               },
             ]}
           >
-            <Ionicons
-              name={getTypeIcon(item.type)}
-              size={22}
-              color={color}
-            />
+            <Ionicons name={getTypeIcon(item.type)} size={22} color={color} />
           </View>
 
           <View style={styles.newsMainInfo}>
@@ -234,14 +223,14 @@ export default function AdminNewsScreen() {
           </View>
         </View>
 
-        <Text style={styles.newsMessage}>
-          {item.message}
-        </Text>
+        <Text style={styles.newsMessage}>{item.message}</Text>
 
         <View style={styles.newsFooter}>
           <View style={styles.publishState}>
             <Ionicons
-              name={item.isPublished ? "checkmark-circle-outline" : "time-outline"}
+              name={
+                item.isPublished ? "checkmark-circle-outline" : "time-outline"
+              }
               size={17}
               color={item.isPublished ? "#10B981" : "#F59E0B"}
             />
@@ -276,7 +265,10 @@ export default function AdminNewsScreen() {
         }
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
             <Ionicons name="arrow-back" size={22} color={COLORS.text} />
           </TouchableOpacity>
 
@@ -309,8 +301,16 @@ export default function AdminNewsScreen() {
 
           <View style={styles.typeRow}>
             <TypeButton value="news" label="Новость" icon="megaphone-outline" />
-            <TypeButton value="update" label="Обновление" icon="rocket-outline" />
-            <TypeButton value="system" label="Система" icon="settings-outline" />
+            <TypeButton
+              value="update"
+              label="Обновление"
+              icon="rocket-outline"
+            />
+            <TypeButton
+              value="system"
+              label="Система"
+              icon="settings-outline"
+            />
           </View>
 
           <Text style={styles.label}>Заголовок</Text>
@@ -334,7 +334,10 @@ export default function AdminNewsScreen() {
           />
 
           <TouchableOpacity
-            style={[styles.publishButton, isPublishing && styles.buttonDisabled]}
+            style={[
+              styles.publishButton,
+              isPublishing && styles.buttonDisabled,
+            ]}
             onPress={handlePublishNews}
             disabled={isPublishing}
             activeOpacity={0.85}

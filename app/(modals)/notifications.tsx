@@ -5,13 +5,13 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { account } from "../../lib/appwrite";
 import { COLORS } from "../../lib/theme";
 import {
@@ -20,6 +20,7 @@ import {
   markAllNotificationsAsRead,
   markNotificationAsRead,
 } from "../../services/notificationService";
+import { isGuestOrSessionError } from "../../services/sessionGuardService";
 import { AppNotification } from "../../types/models";
 
 function getNotificationIcon(type?: string) {
@@ -60,7 +61,7 @@ export default function NotificationsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadNotifications();
-    }, [])
+    }, []),
   );
 
   async function loadNotifications() {
@@ -72,11 +73,13 @@ export default function NotificationsScreen() {
 
       setNotifications(loadedNotifications);
     } catch (error: any) {
-      console.error(error);
-      Alert.alert(
-        "Ошибка",
-        error?.message || "Не удалось загрузить уведомления"
-      );
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -97,8 +100,13 @@ export default function NotificationsScreen() {
 
       Alert.alert(notification.title, notification.message);
     } catch (error: any) {
-      console.error(error);
-      Alert.alert("Ошибка", error?.message || "Не удалось открыть уведомление");
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     }
   }
 
@@ -109,8 +117,13 @@ export default function NotificationsScreen() {
       await markAllNotificationsAsRead(user.$id);
       await loadNotifications();
     } catch (error: any) {
-      console.error(error);
-      Alert.alert("Ошибка", error?.message || "Не удалось обновить уведомления");
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     }
   }
 
@@ -131,20 +144,22 @@ export default function NotificationsScreen() {
               await deleteNotification(notification.$id);
               await loadNotifications();
             } catch (error: any) {
-              console.error(error);
-              Alert.alert(
-                "Ошибка",
-                error?.message || "Не удалось удалить уведомление"
-              );
+              if (isGuestOrSessionError(error)) {
+                return;
+              }
+
+              console.log("Ошибка:", error);
+
+              Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
             }
           },
         },
-      ]
+      ],
     );
   }
 
   const unreadCount = notifications.filter(
-    (notification) => !notification.isRead
+    (notification) => !notification.isRead,
   ).length;
 
   return (
@@ -160,7 +175,10 @@ export default function NotificationsScreen() {
         }
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
             <Ionicons name="arrow-back" size={22} color={COLORS.text} />
           </TouchableOpacity>
 
@@ -170,7 +188,11 @@ export default function NotificationsScreen() {
             style={styles.readAllButton}
             onPress={handleMarkAllAsRead}
           >
-            <Ionicons name="checkmark-done-outline" size={20} color={COLORS.accent} />
+            <Ionicons
+              name="checkmark-done-outline"
+              size={20}
+              color={COLORS.accent}
+            />
           </TouchableOpacity>
         </View>
 
@@ -205,7 +227,8 @@ export default function NotificationsScreen() {
             />
             <Text style={styles.emptyTitle}>Уведомлений пока нет</Text>
             <Text style={styles.emptyText}>
-              Здесь будут новости приложения, ответы поддержки и уведомления по целям.
+              Здесь будут новости приложения, ответы поддержки и уведомления по
+              целям.
             </Text>
           </View>
         ) : (

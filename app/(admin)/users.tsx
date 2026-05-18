@@ -6,7 +6,6 @@ import {
   Alert,
   Modal,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../../lib/theme";
 import {
   AdminUser,
@@ -89,7 +89,7 @@ export default function AdminUsersScreen() {
   useFocusEffect(
     useCallback(() => {
       loadUsers();
-    }, [])
+    }, []),
   );
 
   async function loadUsers() {
@@ -104,7 +104,7 @@ export default function AdminUsersScreen() {
       console.error(error);
       Alert.alert(
         "Ошибка",
-        error?.message || "Не удалось загрузить пользователей"
+        error?.message || "Не удалось загрузить пользователей",
       );
       router.replace("/home");
     } finally {
@@ -210,7 +210,7 @@ export default function AdminUsersScreen() {
       console.error(error);
       Alert.alert(
         "Ошибка",
-        error?.message || "Не удалось обновить пользователя"
+        error?.message || "Не удалось обновить пользователя",
       );
     } finally {
       setIsSavingEdit(false);
@@ -221,7 +221,9 @@ export default function AdminUsersScreen() {
     const actionText = user.isBlocked ? "разблокировать" : "заблокировать";
 
     Alert.alert(
-      user.isBlocked ? "Разблокировать пользователя?" : "Заблокировать пользователя?",
+      user.isBlocked
+        ? "Разблокировать пользователя?"
+        : "Заблокировать пользователя?",
       `Вы действительно хотите ${actionText} пользователя ${user.email || user.name}?`,
       [
         {
@@ -233,7 +235,7 @@ export default function AdminUsersScreen() {
           style: user.isBlocked ? "default" : "destructive",
           onPress: () => handleToggleBlock(user),
         },
-      ]
+      ],
     );
   }
 
@@ -252,15 +254,12 @@ export default function AdminUsersScreen() {
       console.error(error);
       Alert.alert(
         "Ошибка",
-        error?.message || "Не удалось изменить статус пользователя"
+        error?.message || "Не удалось изменить статус пользователя",
       );
     }
   }
 
-  function FilterButton(props: {
-    value: UserFilter;
-    label: string;
-  }) {
+  function FilterButton(props: { value: UserFilter; label: string }) {
     const isActive = filter === props.value;
 
     return (
@@ -295,9 +294,7 @@ export default function AdminUsersScreen() {
           </View>
 
           <View style={styles.userMainInfo}>
-            <Text style={styles.userName}>
-              {user.name || "Без имени"}
-            </Text>
+            <Text style={styles.userName}>{user.name || "Без имени"}</Text>
 
             <Text style={styles.userEmail} numberOfLines={1}>
               {user.email || "Email не указан"}
@@ -349,9 +346,7 @@ export default function AdminUsersScreen() {
 
           <View style={styles.infoItemWide}>
             <Text style={styles.infoLabel}>Последний онлайн</Text>
-            <Text style={styles.infoValue}>
-              {formatDate(user.lastSeenAt)}
-            </Text>
+            <Text style={styles.infoValue}>{formatDate(user.lastSeenAt)}</Text>
           </View>
 
           <View style={styles.infoItemWide}>
@@ -389,12 +384,20 @@ export default function AdminUsersScreen() {
                 activeOpacity={0.85}
               >
                 <View style={styles.userActionIcon}>
-                  <Ionicons name="person-circle-outline" size={18} color={COLORS.accent} />
+                  <Ionicons
+                    name="person-circle-outline"
+                    size={18}
+                    color={COLORS.accent}
+                  />
                 </View>
 
                 <Text style={styles.userOpenButtonText}>Открыть карточку</Text>
 
-                <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={COLORS.textMuted}
+                />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.userEditButton}
@@ -402,12 +405,20 @@ export default function AdminUsersScreen() {
                 activeOpacity={0.85}
               >
                 <View style={styles.userActionIcon}>
-                  <Ionicons name="create-outline" size={18} color={COLORS.text} />
+                  <Ionicons
+                    name="create-outline"
+                    size={18}
+                    color={COLORS.text}
+                  />
                 </View>
 
                 <Text style={styles.userEditButtonText}>Изменить данные</Text>
 
-                <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={COLORS.textMuted}
+                />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -426,7 +437,11 @@ export default function AdminUsersScreen() {
                   ]}
                 >
                   <Ionicons
-                    name={user.isBlocked ? "checkmark-circle-outline" : "ban-outline"}
+                    name={
+                      user.isBlocked
+                        ? "checkmark-circle-outline"
+                        : "ban-outline"
+                    }
                     size={18}
                     color={user.isBlocked ? "#10B981" : COLORS.danger}
                   />
@@ -438,7 +453,9 @@ export default function AdminUsersScreen() {
                     user.isBlocked && styles.userUnblockButtonText,
                   ]}
                 >
-                  {user.isBlocked ? "Разблокировать пользователя" : "Заблокировать пользователя"}
+                  {user.isBlocked
+                    ? "Разблокировать пользователя"
+                    : "Заблокировать пользователя"}
                 </Text>
 
                 <Ionicons
@@ -468,7 +485,10 @@ export default function AdminUsersScreen() {
         }
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
             <Ionicons name="arrow-back" size={22} color={COLORS.text} />
           </TouchableOpacity>
 
@@ -554,9 +574,7 @@ export default function AdminUsersScreen() {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.modalSubtitle}>
-              {selectedUser?.email}
-            </Text>
+            <Text style={styles.modalSubtitle}>{selectedUser?.email}</Text>
 
             <Text style={styles.label}>Имя пользователя</Text>
             <TextInput

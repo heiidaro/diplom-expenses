@@ -5,12 +5,12 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { account } from "../../lib/appwrite";
 import { COLORS } from "../../lib/theme";
 import {
@@ -18,10 +18,7 @@ import {
   getCategoryName,
   getUserCategories,
 } from "../../services/categoryService";
-import {
-  getTotalAmount,
-  getUserExpenses,
-} from "../../services/expenseService";
+import { getTotalAmount, getUserExpenses } from "../../services/expenseService";
 import { Category, Expense } from "../../types/models";
 import { formatMoney } from "../../utils/format";
 
@@ -67,7 +64,7 @@ export default function StatisticsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [])
+    }, []),
   );
 
   async function loadData() {
@@ -84,11 +81,13 @@ export default function StatisticsScreen() {
       setCategories(loadedCategories);
       setExpenses(loadedExpenses);
     } catch (error: any) {
-      console.error(error);
-      Alert.alert(
-        "Ошибка",
-        error?.message || "Не удалось загрузить статистику"
-      );
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -360,7 +359,7 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 20,
-    paddingBottom: 120,
+    paddingBottom: 160,
   },
   title: {
     color: COLORS.text,

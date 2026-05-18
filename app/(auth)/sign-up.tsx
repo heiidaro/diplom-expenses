@@ -4,15 +4,19 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { account, ID } from "../../lib/appwrite";
 import { COLORS } from "../../lib/theme";
+import {
+  deleteCurrentSessionSafely,
+  isGuestOrSessionError,
+} from "../../services/sessionGuardService";
 
 export default function SignUpScreen() {
   const [name, setName] = useState("");
@@ -42,18 +46,22 @@ export default function SignUpScreen() {
       if (commonPasswords.includes(password.toLowerCase())) {
         Alert.alert(
           "Ошибка",
-          "Пароль слишком простой. Придумайте более надежный пароль"
+          "Пароль слишком простой. Придумайте более надежный пароль",
         );
         return;
       }
+
+      // ВАЖНО: Выходим из существующей сессии перед регистрацией
+      await deleteCurrentSessionSafely();
 
       await account.create(ID.unique(), email.trim(), password, name.trim());
       await account.createEmailPasswordSession(email.trim(), password);
 
       router.replace("/home");
     } catch (error: any) {
-      console.error(error);
-
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
       const message =
         error?.message ===
         "Invalid `password` param: Password must be between 8 and 265 characters long, and should not be one of the commonly used password."
@@ -72,7 +80,9 @@ export default function SignUpScreen() {
       >
         <View>
           <Text style={styles.title}>Регистрация</Text>
-          <Text style={styles.subtitle}>Создайте аккаунт для учета расходов</Text>
+          <Text style={styles.subtitle}>
+            Создайте аккаунт для учета расходов
+          </Text>
         </View>
 
         <View style={styles.form}>

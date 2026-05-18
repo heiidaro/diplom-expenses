@@ -6,7 +6,6 @@ import {
   Alert,
   Modal,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Switch,
@@ -15,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { account } from "../../lib/appwrite";
 import { COLORS } from "../../lib/theme";
 import {
@@ -28,6 +28,7 @@ import {
   getUserRecurringExpenses,
   updateRecurringExpense,
 } from "../../services/recurringExpenseService";
+import { isGuestOrSessionError } from "../../services/sessionGuardService";
 import { Category, RecurringExpense } from "../../types/models";
 import { formatDate, formatMoney } from "../../utils/format";
 
@@ -51,7 +52,7 @@ export default function RecurringExpensesScreen() {
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [])
+    }, []),
   );
 
   async function loadData() {
@@ -72,11 +73,13 @@ export default function RecurringExpensesScreen() {
         setCategoryId(loadedCategories[0].$id);
       }
     } catch (error: any) {
-      console.error(error);
-      Alert.alert(
-        "Ошибка",
-        error?.message || "Не удалось загрузить регулярные расходы"
-      );
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -126,6 +129,7 @@ export default function RecurringExpensesScreen() {
     try {
       const normalizedAmount = amount.replace(",", ".");
       const amountNumber = Number(normalizedAmount);
+      const roundedAmount = Math.round(amountNumber * 100) / 100;
       const dayNumber = Number(dayOfMonth);
 
       if (!title.trim()) {
@@ -161,7 +165,7 @@ export default function RecurringExpensesScreen() {
         await updateRecurringExpense({
           recurringId: editingItem.$id,
           title: title.trim(),
-          amount: amountNumber,
+          amount: roundedAmount,
           categoryId,
           dayOfMonth: dayNumber,
           isActive,
@@ -170,7 +174,7 @@ export default function RecurringExpensesScreen() {
         await createRecurringExpense({
           userId: user.$id,
           title: title.trim(),
-          amount: amountNumber,
+          amount: roundedAmount,
           categoryId,
           dayOfMonth: dayNumber,
         });
@@ -179,11 +183,13 @@ export default function RecurringExpensesScreen() {
       closeModal();
       await loadData();
     } catch (error: any) {
-      console.error(error);
-      Alert.alert(
-        "Ошибка",
-        error?.message || "Не удалось сохранить регулярный расход"
-      );
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     } finally {
       setIsSaving(false);
     }
@@ -209,12 +215,12 @@ export default function RecurringExpensesScreen() {
               console.error(error);
               Alert.alert(
                 "Ошибка",
-                error?.message || "Не удалось удалить регулярный расход"
+                error?.message || "Не удалось удалить регулярный расход",
               );
             }
           },
         },
-      ]
+      ],
     );
   }
 
@@ -231,7 +237,10 @@ export default function RecurringExpensesScreen() {
         }
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
             <Ionicons name="arrow-back" size={22} color={COLORS.text} />
           </TouchableOpacity>
 
@@ -260,7 +269,11 @@ export default function RecurringExpensesScreen() {
           </View>
         ) : items.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Ionicons name="repeat-outline" size={36} color={COLORS.textMuted} />
+            <Ionicons
+              name="repeat-outline"
+              size={36}
+              color={COLORS.textMuted}
+            />
             <Text style={styles.emptyTitle}>Регулярных расходов пока нет</Text>
             <Text style={styles.emptyText}>
               Нажмите +, чтобы создать первый шаблон
@@ -280,10 +293,7 @@ export default function RecurringExpensesScreen() {
                   onLongPress={() => confirmDelete(item)}
                 >
                   <View
-                    style={[
-                      styles.itemIcon,
-                      { backgroundColor: `${color}22` },
-                    ]}
+                    style={[styles.itemIcon, { backgroundColor: `${color}22` }]}
                   >
                     <Ionicons name="repeat-outline" size={24} color={color} />
                   </View>
@@ -332,114 +342,125 @@ export default function RecurringExpensesScreen() {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.label}>Название</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Например: Интернет"
-              placeholderTextColor={COLORS.textMuted}
-              value={title}
-              onChangeText={setTitle}
-            />
-
-            <Text style={styles.label}>Сумма</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="700"
-              placeholderTextColor={COLORS.textMuted}
-              keyboardType="decimal-pad"
-              value={amount}
-              onChangeText={setAmount}
-            />
-
-            <Text style={styles.label}>Число месяца</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="10"
-              placeholderTextColor={COLORS.textMuted}
-              keyboardType="number-pad"
-              value={dayOfMonth}
-              onChangeText={setDayOfMonth}
-            />
-            <Text style={styles.fieldHint}>
-              Укажите, какого числа каждого месяца будет автоматически добавляться этот расход.
-            </Text>
-
-            <Text style={styles.label}>Категория</Text>
-            <View style={styles.categoryChips}>
-              {categories.map((category) => {
-                const isSelected = categoryId === category.$id;
-
-                return (
-                  <TouchableOpacity
-                    key={category.$id}
-                    style={[
-                      styles.categoryChip,
-                      isSelected && styles.categoryChipActive,
-                    ]}
-                    onPress={() => setCategoryId(category.$id)}
-                  >
-                    <View
-                      style={[
-                        styles.categoryDot,
-                        { backgroundColor: category.color || COLORS.accent },
-                      ]}
-                    />
-                    <Text
-                      style={[
-                        styles.categoryChipText,
-                        isSelected && styles.categoryChipTextActive,
-                      ]}
-                    >
-                      {category.name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {editingItem ? (
-              <View style={styles.switchRow}>
-                <View>
-                  <Text style={styles.switchTitle}>Активно</Text>
-                  <Text style={styles.switchText}>
-                    Если выключить, новые расходы создаваться не будут
-                  </Text>
-                </View>
-
-                <Switch
-                  value={isActive}
-                  onValueChange={setIsActive}
-                  trackColor={{
-                    false: COLORS.cardSecond,
-                    true: COLORS.accent,
-                  }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
-            ) : null}
-
-            <TouchableOpacity
-              style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
-              onPress={handleSave}
-              disabled={isSaving}
+            <ScrollView
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
             >
-              {isSaving ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.saveButtonText}>
-                  {editingItem ? "Сохранить изменения" : "Создать шаблон"}
-                </Text>
-              )}
-            </TouchableOpacity>
+              <Text style={styles.label}>Название</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Например: Интернет"
+                placeholderTextColor={COLORS.textMuted}
+                value={title}
+                onChangeText={setTitle}
+              />
 
-            {editingItem ? (
+              <Text style={styles.label}>Сумма</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="700"
+                placeholderTextColor={COLORS.textMuted}
+                keyboardType="decimal-pad"
+                value={amount}
+                onChangeText={setAmount}
+              />
+
+              <Text style={styles.label}>Число месяца</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="10"
+                placeholderTextColor={COLORS.textMuted}
+                keyboardType="number-pad"
+                value={dayOfMonth}
+                onChangeText={setDayOfMonth}
+              />
+              <Text style={styles.fieldHint}>
+                Укажите, какого числа каждого месяца будет автоматически
+                добавляться этот расход.
+              </Text>
+
+              <Text style={styles.label}>Категория</Text>
+              <View style={styles.categoryChips}>
+                {categories.map((category) => {
+                  const isSelected = categoryId === category.$id;
+
+                  return (
+                    <TouchableOpacity
+                      key={category.$id}
+                      style={[
+                        styles.categoryChip,
+                        isSelected && styles.categoryChipActive,
+                      ]}
+                      onPress={() => setCategoryId(category.$id)}
+                    >
+                      <View
+                        style={[
+                          styles.categoryDot,
+                          { backgroundColor: category.color || COLORS.accent },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.categoryChipText,
+                          isSelected && styles.categoryChipTextActive,
+                        ]}
+                      >
+                        {category.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {editingItem ? (
+                <View style={styles.switchRow}>
+                  <View>
+                    <Text style={styles.switchTitle}>Активно</Text>
+                    <Text style={styles.switchText}>
+                      Если выключить, новые расходы создаваться не будут
+                    </Text>
+                  </View>
+
+                  <Switch
+                    value={isActive}
+                    onValueChange={setIsActive}
+                    trackColor={{
+                      false: COLORS.cardSecond,
+                      true: COLORS.accent,
+                    }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+              ) : null}
+
               <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={() => confirmDelete(editingItem)}
+                style={[
+                  styles.saveButton,
+                  isSaving && styles.saveButtonDisabled,
+                ]}
+                onPress={handleSave}
+                disabled={isSaving}
               >
-                <Text style={styles.deleteButtonText}>Удалить шаблон</Text>
+                {isSaving ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.saveButtonText}>
+                    {editingItem ? "Сохранить изменения" : "Создать шаблон"}
+                  </Text>
+                )}
               </TouchableOpacity>
-            ) : null}
+
+              {editingItem ? (
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => confirmDelete(editingItem)}
+                >
+                  <Text style={styles.deleteButtonText}>Удалить шаблон</Text>
+                </TouchableOpacity>
+              ) : null}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -448,6 +469,13 @@ export default function RecurringExpensesScreen() {
 }
 
 const styles = StyleSheet.create({
+  modalScroll: {
+    flexShrink: 1,
+  },
+
+  modalScrollContent: {
+    paddingBottom: 8,
+  },
   safeArea: {
     flex: 1,
     backgroundColor: COLORS.background,

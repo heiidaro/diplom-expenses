@@ -5,7 +5,8 @@ import { createUniqueDailyNotification } from "./notificationService";
 
 function formatMoney(value: number) {
   return `${new Intl.NumberFormat("ru-RU", {
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(Number(value || 0))} ₽`;
 }
 
@@ -27,7 +28,7 @@ export async function syncGoalNotifications(userId: string) {
           userId,
           title: "Цель превышена",
           message: `По цели "${goal.title}" превышение составляет ${formatMoney(
-            progress.exceededAmount
+            progress.exceededAmount,
           )}. Расходы за выбранный период выше установленного лимита.`,
           type: "goal",
           relatedEntityId: goal.$id,
@@ -41,14 +42,14 @@ export async function syncGoalNotifications(userId: string) {
         userId,
         title: "Дневной лимит обновлен",
         message: `По цели "${goal.title}" можно тратить примерно ${formatMoney(
-          progress.dailyAvailable
+          progress.dailyAvailable,
         )} в день. Осталось ${formatMoney(
-          progress.remainingAmount
+          progress.remainingAmount,
         )} на ${progress.daysRemaining} дн.`,
         type: "goal",
         relatedEntityId: goal.$id,
         relatedEntityType: "goal",
       });
-    })
+    }),
   );
 }

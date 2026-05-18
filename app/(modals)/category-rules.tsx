@@ -5,24 +5,24 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { account } from "../../lib/appwrite";
 import { COLORS } from "../../lib/theme";
+import {
+  deleteCategoryRule,
+  getUserCategoryRules,
+} from "../../services/categoryRuleService";
 import {
   getCategoryColor,
   getCategoryName,
   getUserCategories,
 } from "../../services/categoryService";
-import {
-  deleteCategoryRule,
-  getUserCategoryRules,
-} from "../../services/categoryRuleService";
 import { Category, CategoryRule } from "../../types/models";
 import { formatDate } from "../../utils/format";
 
@@ -35,7 +35,7 @@ export default function CategoryRulesScreen() {
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [])
+    }, []),
   );
 
   async function loadData() {
@@ -52,11 +52,13 @@ export default function CategoryRulesScreen() {
       setCategories(loadedCategories);
       setRules(loadedRules);
     } catch (error: any) {
-      console.error(error);
-      Alert.alert(
-        "Ошибка",
-        error?.message || "Не удалось загрузить правила категорий"
-      );
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -85,15 +87,17 @@ export default function CategoryRulesScreen() {
               await deleteCategoryRule(rule.$id);
               await loadData();
             } catch (error: any) {
-              console.error(error);
-              Alert.alert(
-                "Ошибка",
-                error?.message || "Не удалось удалить правило"
-              );
+              if (isGuestOrSessionError(error)) {
+                return;
+              }
+
+              console.log("Ошибка:", error);
+
+              Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
             }
           },
         },
-      ]
+      ],
     );
   }
 
@@ -110,7 +114,10 @@ export default function CategoryRulesScreen() {
         }
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
             <Ionicons name="arrow-back" size={22} color={COLORS.text} />
           </TouchableOpacity>
 
@@ -154,7 +161,10 @@ export default function CategoryRulesScreen() {
           <View style={styles.list}>
             {rules.map((rule) => {
               const categoryName = getCategoryName(categories, rule.categoryId);
-              const categoryColor = getCategoryColor(categories, rule.categoryId);
+              const categoryColor = getCategoryColor(
+                categories,
+                rule.categoryId,
+              );
 
               return (
                 <TouchableOpacity
@@ -165,7 +175,7 @@ export default function CategoryRulesScreen() {
                   onPress={() =>
                     Alert.alert(
                       "Правило категории",
-                      `Если комментарий содержит "${rule.keyword}", приложение выберет категорию "${categoryName}".`
+                      `Если комментарий содержит "${rule.keyword}", приложение выберет категорию "${categoryName}".`,
                     )
                   }
                 >
@@ -175,7 +185,11 @@ export default function CategoryRulesScreen() {
                       { backgroundColor: `${categoryColor}22` },
                     ]}
                   >
-                    <Ionicons name="sparkles-outline" size={22} color={categoryColor} />
+                    <Ionicons
+                      name="sparkles-outline"
+                      size={22}
+                      color={categoryColor}
+                    />
                   </View>
 
                   <View style={styles.ruleInfo}>

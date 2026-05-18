@@ -4,14 +4,11 @@ import DateTimePicker, {
 } from "@react-native-community/datetimepicker";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { getUserExpenses } from "../../services/expenseService";
-import { calculateGoalProgress } from "../../services/goalAnalyticsService";
 import {
   ActivityIndicator,
   Alert,
   Modal,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Switch,
@@ -20,8 +17,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { account } from "../../lib/appwrite";
 import { COLORS } from "../../lib/theme";
+import { getUserExpenses } from "../../services/expenseService";
+import { calculateGoalProgress } from "../../services/goalAnalyticsService";
 import {
   createSpendingGoal,
   deleteSpendingGoal,
@@ -35,8 +35,9 @@ type PickerField = "start" | "end" | null;
 
 function formatMoney(value: number) {
   return `${new Intl.NumberFormat("ru-RU", {
-    maximumFractionDigits: 0,
-  }).format(value || 0)} ₽`;
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0))} ₽`;
 }
 
 function formatDate(value: string | Date) {
@@ -102,7 +103,7 @@ export default function SpendingGoalsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadGoals();
-    }, [])
+    }, []),
   );
 
   async function loadGoals() {
@@ -118,9 +119,14 @@ export default function SpendingGoalsScreen() {
 
       setGoals(userGoals);
       setExpenses(userExpenses);
-    } catch (error) {
-      console.error(error);
-      Alert.alert("Ошибка", "Не удалось загрузить цели");
+    } catch (error: any) {
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     } finally {
       setIsLoading(false);
     }
@@ -143,10 +149,7 @@ export default function SpendingGoalsScreen() {
     setShowDatePicker(true);
   }
 
-  function handleDateChange(
-    event: DateTimePickerEvent,
-    selectedDate?: Date
-  ) {
+  function handleDateChange(event: DateTimePickerEvent, selectedDate?: Date) {
     if (event.type === "dismissed") {
       setShowDatePicker(false);
       setPickerField(null);
@@ -197,7 +200,10 @@ export default function SpendingGoalsScreen() {
       }
 
       if (endDate < startDate) {
-        Alert.alert("Ошибка", "Дата окончания не может быть раньше даты начала");
+        Alert.alert(
+          "Ошибка",
+          "Дата окончания не может быть раньше даты начала",
+        );
         return;
       }
 
@@ -217,7 +223,7 @@ export default function SpendingGoalsScreen() {
           0,
           0,
           0,
-          0
+          0,
         ).toISOString(),
         endDate: new Date(
           endDate.getFullYear(),
@@ -226,7 +232,7 @@ export default function SpendingGoalsScreen() {
           0,
           0,
           0,
-          0
+          0,
         ).toISOString(),
         isActive,
       };
@@ -241,9 +247,14 @@ export default function SpendingGoalsScreen() {
 
       resetForm();
       await loadGoals();
-    } catch (error) {
-      console.error(error);
-      Alert.alert("Ошибка", "Не удалось сохранить цель");
+    } catch (error: any) {
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     } finally {
       setIsSaving(false);
     }
@@ -274,7 +285,7 @@ export default function SpendingGoalsScreen() {
           style: "destructive",
           onPress: () => handleDeleteGoal(goal.$id),
         },
-      ]
+      ],
     );
   }
 
@@ -288,9 +299,14 @@ export default function SpendingGoalsScreen() {
 
       await loadGoals();
       Alert.alert("Готово", "Цель удалена");
-    } catch (error) {
-      console.error(error);
-      Alert.alert("Ошибка", "Не удалось удалить цель");
+    } catch (error: any) {
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     }
   }
 
@@ -506,7 +522,6 @@ export default function SpendingGoalsScreen() {
                   isEditingThis && styles.goalCardEditing,
                 ]}
               >
-     
                 <View style={styles.goalTopRow}>
                   <View style={{ flex: 1, marginRight: 10 }}>
                     <Text style={styles.goalTitle}>{goal.title}</Text>
@@ -543,7 +558,8 @@ export default function SpendingGoalsScreen() {
                       <Text
                         style={[
                           styles.progressPercent,
-                          goalProgress.isExceeded && styles.progressPercentDanger,
+                          goalProgress.isExceeded &&
+                            styles.progressPercentDanger,
                         ]}
                       >
                         {goalProgress.rawProgressPercent.toFixed(0)}%
@@ -609,7 +625,8 @@ export default function SpendingGoalsScreen() {
                           color={COLORS.danger}
                         />
                         <Text style={styles.goalWarningText}>
-                          Цель превышена. Расходы за выбранный период выше установленного лимита.
+                          Цель превышена. Расходы за выбранный период выше
+                          установленного лимита.
                         </Text>
                       </View>
                     ) : (
@@ -637,7 +654,7 @@ export default function SpendingGoalsScreen() {
                     <Text style={styles.goalInfoLabel}>Тип</Text>
                     <Text style={styles.goalInfoValue}>
                       {getPeriodTypeLabel(
-                        (goal.periodType as PeriodType) || "custom"
+                        (goal.periodType as PeriodType) || "custom",
                       )}
                     </Text>
                   </View>
@@ -680,7 +697,7 @@ export default function SpendingGoalsScreen() {
           })
         )}
       </ScrollView>
-       <Modal visible={showDatePicker} transparent animationType="fade">
+      <Modal visible={showDatePicker} transparent animationType="fade">
         <View style={styles.dateModalOverlay}>
           <View style={styles.dateModalCard}>
             <View style={styles.dateModalHeader}>
@@ -703,7 +720,9 @@ export default function SpendingGoalsScreen() {
 
             <View style={styles.dateModalPreview}>
               <Text style={styles.dateModalPreviewLabel}>
-                {pickerField === "start" ? "Текущая дата начала" : "Текущая дата окончания"}
+                {pickerField === "start"
+                  ? "Текущая дата начала"
+                  : "Текущая дата окончания"}
               </Text>
 
               <Text style={styles.dateModalPreviewValue}>

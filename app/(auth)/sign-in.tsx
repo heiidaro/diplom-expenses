@@ -1,16 +1,17 @@
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { account } from "../../lib/appwrite";
 import { COLORS } from "../../lib/theme";
 import {
@@ -18,72 +19,119 @@ import {
   isUserBlockedByProfile,
   logoutCurrentSessionSafely,
 } from "../../services/blockedUserService";
+import { isGuestOrSessionError } from "../../services/sessionGuardService";
 
 export default function SignInScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Проверяем существующую сессию при загрузке
+  useEffect(() => {
+    checkExistingSession();
+  }, []);
+
+  async function checkExistingSession() {
+    try {
+      const currentUser = await account.get();
+      // Если сессия есть, перенаправляем
+      if (currentUser) {
+        if (isAdminAccount(currentUser)) {
+          router.replace("/(admin)/dashboard" as any);
+        } else {
+          const isBlocked = await isUserBlockedByProfile(currentUser.$id);
+          if (isBlocked) {
+            await logoutCurrentSessionSafely();
+            setIsLoading(false);
+          } else {
+            router.replace("/home");
+          }
+        }
+      }
+    } catch {
+      // Нет активной сессии — это нормально
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   async function handleSignIn() {
-  try {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert("Ошибка", "Введите почту и пароль");
-      return;
-    }
+    if (isLoading) return;
 
-    await account.createEmailPasswordSession(email.trim(), password);
+    try {
+      if (!email.trim() || !password.trim()) {
+        Alert.alert("Ошибка", "Введите почту и пароль");
+        return;
+      }
 
-    const currentUser = await account.get();
+      setIsLoading(true);
 
-    console.log("CURRENT USER AFTER LOGIN:", {
-      id: currentUser.$id,
-      email: currentUser.email,
-      labels: currentUser.labels,
-    });
-
-    if (isAdminAccount(currentUser)) {
-      router.replace("/(admin)/dashboard" as any);
-      return;
-    }
-
-    const isBlocked = await isUserBlockedByProfile(currentUser.$id);
-
-    if (isBlocked) {
+      // ВАЖНО: Сначала выходим из текущей сессии, если она есть
       await logoutCurrentSessionSafely();
 
-      Alert.alert(
-        "Аккаунт заблокирован",
-        "Ваш аккаунт заблокирован. Обратитесь в поддержку."
-      );
+      // Создаем новую сессию
+      await account.createEmailPasswordSession(email.trim(), password);
 
-      router.replace("/");
-      return;
+      const currentUser = await account.get();
+
+      console.log("CURRENT USER AFTER LOGIN:", {
+        id: currentUser.$id,
+        email: currentUser.email,
+        labels: currentUser.labels,
+      });
+
+      if (isAdminAccount(currentUser)) {
+        router.replace("/(admin)/dashboard" as any);
+        return;
+      }
+
+      const isBlocked = await isUserBlockedByProfile(currentUser.$id);
+
+      if (isBlocked) {
+        await logoutCurrentSessionSafely();
+        Alert.alert(
+          "Аккаунт заблокирован",
+          "Ваш аккаунт заблокирован. Обратитесь в поддержку.",
+        );
+        router.replace("/");
+        return;
+      }
+
+      router.replace("/home");
+    } catch (error: any) {
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      const message = String(error?.message || "").toLowerCase();
+      const isBlockedError =
+        message.includes("blocked") ||
+        message.includes("disabled") ||
+        message.includes("status");
+
+      if (isBlockedError) {
+        Alert.alert(
+          "Аккаунт заблокирован",
+          "Ваш аккаунт заблокирован. Обратитесь в поддержку.",
+        );
+        return;
+      }
+
+      Alert.alert("Ошибка входа", error?.message || "Проверьте почту и пароль");
+    } finally {
+      setIsLoading(false);
     }
+  }
 
-    router.replace("/home");
-  } catch (error: any) {
-    console.error(error);
-
-    const message = String(error?.message || "").toLowerCase();
-
-    const isBlockedError =
-      message.includes("blocked") ||
-      message.includes("disabled") ||
-      message.includes("status");
-
-    if (isBlockedError) {
-      Alert.alert(
-        "Аккаунт заблокирован",
-        "Ваш аккаунт заблокирован. Обратитесь в поддержку."
-      );
-      return;
-    }
-
-    Alert.alert(
-      "Ошибка входа",
-      error?.message || "Проверьте почту и пароль"
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.accent} />
+        </View>
+      </SafeAreaView>
     );
   }
-}
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -93,7 +141,9 @@ export default function SignInScreen() {
       >
         <View>
           <Text style={styles.title}>Вход</Text>
-          <Text style={styles.subtitle}>Войдите в аккаунт для учета расходов</Text>
+          <Text style={styles.subtitle}>
+            Войдите в аккаунт для учета расходов
+          </Text>
         </View>
 
         <View style={styles.form}>
@@ -105,6 +155,7 @@ export default function SignInScreen() {
             keyboardType="email-address"
             value={email}
             onChangeText={setEmail}
+            editable={!isLoading}
           />
 
           <TextInput
@@ -114,10 +165,25 @@ export default function SignInScreen() {
             secureTextEntry
             value={password}
             onChangeText={setPassword}
+            editable={!isLoading}
           />
 
-          <TouchableOpacity style={styles.primaryButton} onPress={handleSignIn}>
-            <Text style={styles.primaryButtonText}>Войти</Text>
+          <TouchableOpacity
+            style={styles.forgotButton}
+            onPress={() => router.push("/(auth)/forgot-password" as any)}
+            disabled={isLoading}
+          >
+            <Text style={styles.forgotButtonText}>Забыли пароль?</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.primaryButton, isLoading && styles.disabledButton]}
+            onPress={handleSignIn}
+            disabled={isLoading}
+          >
+            <Text style={styles.primaryButtonText}>
+              {isLoading ? "Вход..." : "Войти"}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => router.push("/sign-up")}>
@@ -130,6 +196,17 @@ export default function SignInScreen() {
 }
 
 const styles = StyleSheet.create({
+  forgotButton: {
+    alignSelf: "flex-end",
+    marginTop: -6,
+    marginBottom: 2,
+  },
+
+  forgotButtonText: {
+    color: COLORS.accent,
+    fontSize: 13,
+    fontWeight: "800",
+  },
   safeArea: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -180,5 +257,13 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "700",
     marginTop: 10,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });

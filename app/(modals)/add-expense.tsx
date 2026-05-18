@@ -1,13 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React from "react";
-import {
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../../lib/theme";
 
 export default function AddExpenseScreen() {
@@ -15,7 +10,10 @@ export default function AddExpenseScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.closeButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => router.back()}
+          >
             <Ionicons name="close" size={24} color={COLORS.text} />
           </TouchableOpacity>
 
@@ -25,7 +23,8 @@ export default function AddExpenseScreen() {
         </View>
 
         <Text style={styles.subtitle}>
-          Выберите способ добавления траты. QR-чек будет обработан автоматически.
+          Выберите способ добавления траты. QR-чек будет обработан
+          автоматически.
         </Text>
 
         <View style={styles.options}>
@@ -35,7 +34,11 @@ export default function AddExpenseScreen() {
             activeOpacity={0.85}
           >
             <View style={styles.optionIcon}>
-              <Ionicons name="qr-code-outline" size={30} color={COLORS.accent} />
+              <Ionicons
+                name="qr-code-outline"
+                size={30}
+                color={COLORS.accent}
+              />
             </View>
 
             <View style={styles.optionText}>
@@ -45,7 +48,11 @@ export default function AddExpenseScreen() {
               </Text>
             </View>
 
-            <Ionicons name="chevron-forward" size={22} color={COLORS.textMuted} />
+            <Ionicons
+              name="chevron-forward"
+              size={22}
+              color={COLORS.textMuted}
+            />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -54,7 +61,11 @@ export default function AddExpenseScreen() {
             activeOpacity={0.85}
           >
             <View style={styles.optionIcon}>
-              <Ionicons name="document-text-outline" size={26} color={COLORS.accent} />
+              <Ionicons
+                name="document-text-outline"
+                size={26}
+                color={COLORS.accent}
+              />
             </View>
 
             <View style={styles.optionInfo}>
@@ -64,7 +75,11 @@ export default function AddExpenseScreen() {
               </Text>
             </View>
 
-            <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={COLORS.textMuted}
+            />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -83,12 +98,20 @@ export default function AddExpenseScreen() {
               </Text>
             </View>
 
-            <Ionicons name="chevron-forward" size={22} color={COLORS.textMuted} />
+            <Ionicons
+              name="chevron-forward"
+              size={22}
+              color={COLORS.textMuted}
+            />
           </TouchableOpacity>
         </View>
 
         <View style={styles.infoCard}>
-          <Ionicons name="information-circle-outline" size={22} color={COLORS.accent} />
+          <Ionicons
+            name="information-circle-outline"
+            size={22}
+            color={COLORS.accent}
+          />
           <Text style={styles.infoText}>
             При сканировании QR-кода чек сохраняется как автоматический источник
             расхода. Если категория неизвестна, расход попадает в “Другое”.

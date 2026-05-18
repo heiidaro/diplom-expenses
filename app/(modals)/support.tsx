@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { account } from "../../lib/appwrite";
 import { COLORS } from "../../lib/theme";
 import {
@@ -80,7 +80,7 @@ export default function SupportScreen() {
   useFocusEffect(
     useCallback(() => {
       loadTickets();
-    }, [])
+    }, []),
   );
 
   async function loadTickets() {
@@ -92,11 +92,13 @@ export default function SupportScreen() {
 
       setTickets(loadedTickets);
     } catch (error: any) {
-      console.error(error);
-      Alert.alert(
-        "Ошибка",
-        error?.message || "Не удалось загрузить обращения"
-      );
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -137,11 +139,13 @@ export default function SupportScreen() {
 
       await loadTickets();
     } catch (error: any) {
-      console.error(error);
-      Alert.alert(
-        "Ошибка",
-        error?.message || "Не удалось создать обращение"
-      );
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка:", error);
+
+      Alert.alert("Ошибка", error?.message || "Что-то пошло не так");
     } finally {
       setIsSaving(false);
     }
@@ -164,15 +168,20 @@ export default function SupportScreen() {
               await deleteSupportTicket(ticket.$id);
               await loadTickets();
             } catch (error: any) {
-              console.error(error);
+              if (isGuestOrSessionError(error)) {
+                return;
+              }
+
+              console.log("Ошибка действия:", error);
+
               Alert.alert(
                 "Ошибка",
-                error?.message || "Не удалось удалить обращение"
+                error?.message || "Не удалось выполнить действие",
               );
             }
           },
         },
-      ]
+      ],
     );
   }
 
@@ -189,7 +198,10 @@ export default function SupportScreen() {
         }
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
             <Ionicons name="arrow-back" size={22} color={COLORS.text} />
           </TouchableOpacity>
 

@@ -4,13 +4,13 @@ import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../../lib/theme";
 import {
   AdminStats,
@@ -28,7 +28,7 @@ export default function AdminDashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       loadDashboard();
-    }, [])
+    }, []),
   );
 
   async function handleExportAllUsersStats() {
@@ -42,7 +42,7 @@ export default function AdminDashboardScreen() {
       console.error(error);
       Alert.alert(
         "Ошибка",
-        error?.message || "Не удалось экспортировать статистику"
+        error?.message || "Не удалось экспортировать статистику",
       );
     } finally {
       setIsExportingAll(false);
@@ -56,12 +56,17 @@ export default function AdminDashboardScreen() {
       const adminStatus = await getMeAdminStatus();
 
       if (!adminStatus.isAdmin) {
-        Alert.alert("Нет доступа", "Этот раздел доступен только администратору");
+        Alert.alert(
+          "Нет доступа",
+          "Этот раздел доступен только администратору",
+        );
         router.replace("/home");
         return;
       }
 
-      setAdminName(adminStatus.admin.name || adminStatus.admin.email || "Администратор");
+      setAdminName(
+        adminStatus.admin.name || adminStatus.admin.email || "Администратор",
+      );
 
       const loadedStats = await getAdminDashboardStats();
       setStats(loadedStats);
@@ -69,7 +74,7 @@ export default function AdminDashboardScreen() {
       console.error(error);
       Alert.alert(
         "Ошибка",
-        error?.message || "Не удалось загрузить админ-панель"
+        error?.message || "Не удалось загрузить админ-панель",
       );
       router.replace("/home");
     } finally {
@@ -124,7 +129,10 @@ export default function AdminDashboardScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
             <Ionicons name="arrow-back" size={22} color={COLORS.text} />
           </TouchableOpacity>
 
@@ -144,7 +152,11 @@ export default function AdminDashboardScreen() {
           <>
             <View style={styles.adminCard}>
               <View style={styles.adminIcon}>
-                <Ionicons name="shield-checkmark-outline" size={30} color={COLORS.accent} />
+                <Ionicons
+                  name="shield-checkmark-outline"
+                  size={30}
+                  color={COLORS.accent}
+                />
               </View>
 
               <View style={{ flex: 1 }}>
@@ -194,7 +206,10 @@ export default function AdminDashboardScreen() {
             </View>
 
             <TouchableOpacity
-              style={[styles.exportAllButton, isExportingAll && styles.buttonDisabled]}
+              style={[
+                styles.exportAllButton,
+                isExportingAll && styles.buttonDisabled,
+              ]}
               onPress={handleExportAllUsersStats}
               disabled={isExportingAll}
               activeOpacity={0.85}

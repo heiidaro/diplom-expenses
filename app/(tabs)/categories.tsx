@@ -1,13 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
-import { updateMyActivity } from "../../services/activityService";
 import {
   ActivityIndicator,
   Alert,
   Modal,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,8 +13,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { account } from "../../lib/appwrite";
 import { COLORS } from "../../lib/theme";
+import { updateMyActivity } from "../../services/activityService";
 import {
   createCategory,
   deleteCategory,
@@ -77,7 +77,7 @@ export default function CategoriesScreen() {
     useCallback(() => {
       loadCategories();
       updateMyActivity("categories");
-    }, [])
+    }, []),
   );
 
   async function loadCategories() {
@@ -89,11 +89,11 @@ export default function CategoriesScreen() {
 
       setCategories(loadedCategories);
     } catch (error: any) {
-      console.error(error);
-      Alert.alert(
-        "Ошибка",
-        error?.message || "Не удалось загрузить категории"
-      );
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка загрузки:", error);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -165,11 +165,11 @@ export default function CategoriesScreen() {
       closeModal();
       await loadCategories();
     } catch (error: any) {
-      console.error(error);
-      Alert.alert(
-        "Ошибка",
-        error?.message || "Не удалось сохранить категорию"
-      );
+      if (isGuestOrSessionError(error)) {
+        return;
+      }
+
+      console.log("Ошибка загрузки:", error);
     } finally {
       setIsSaving(false);
     }
@@ -179,7 +179,7 @@ export default function CategoriesScreen() {
     if (category.isDefault) {
       Alert.alert(
         "Базовая категория",
-        "Эта категория создана системой. Ее нельзя изменить или удалить."
+        "Эта категория создана системой. Ее нельзя изменить или удалить.",
       );
       return;
     }
@@ -218,15 +218,20 @@ export default function CategoriesScreen() {
               await deleteCategory(category.$id);
               await loadCategories();
             } catch (error: any) {
-              console.error(error);
+              if (isGuestOrSessionError(error)) {
+                return;
+              }
+
+              console.log("Ошибка действия:", error);
+
               Alert.alert(
                 "Ошибка",
-                error?.message || "Не удалось удалить категорию"
+                error?.message || "Не удалось выполнить действие",
               );
             }
           },
         },
-      ]
+      ],
     );
   }
 
@@ -245,9 +250,7 @@ export default function CategoriesScreen() {
         <View style={styles.header}>
           <View style={styles.headerText}>
             <Text style={styles.title}>Категории</Text>
-            <Text style={styles.subtitle}>
-              Управление категориями расходов из Appwrite
-            </Text>
+            <Text style={styles.subtitle}>Управление категориями расходов</Text>
           </View>
 
           <TouchableOpacity style={styles.addButton} onPress={openCreateModal}>
@@ -265,7 +268,7 @@ export default function CategoriesScreen() {
             <Ionicons name="grid-outline" size={34} color={COLORS.textMuted} />
             <Text style={styles.emptyTitle}>Категорий пока нет</Text>
             <Text style={styles.emptyText}>
-              Проверьте права доступа к таблице categories в Appwrite
+              Проверьте права доступа к таблице.
             </Text>
           </View>
         ) : (
@@ -386,7 +389,7 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 20,
-    paddingBottom: 120,
+    paddingBottom: 160,
   },
   header: {
     flexDirection: "row",
