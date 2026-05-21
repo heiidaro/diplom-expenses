@@ -51,7 +51,6 @@ export default function SignUpScreen() {
         return;
       }
 
-      // ВАЖНО: Выходим из существующей сессии перед регистрацией
       await deleteCurrentSessionSafely();
 
       await account.create(ID.unique(), email.trim(), password, name.trim());

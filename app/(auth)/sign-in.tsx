@@ -66,10 +66,8 @@ export default function SignInScreen() {
 
       setIsLoading(true);
 
-      // ВАЖНО: Сначала выходим из текущей сессии, если она есть
       await logoutCurrentSessionSafely();
 
-      // Создаем новую сессию
       await account.createEmailPasswordSession(email.trim(), password);
 
       const currentUser = await account.get();
