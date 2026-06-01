@@ -105,8 +105,7 @@ export type AdminUserStatsExport = {
 };
 
 export type AdminAllUsersStatsExport = {
-  users: Array<
-    AdminUser & {
+  users: (AdminUser & {
       expensesCount: number;
       totalExpenseAmount: number;
       goalsCount: number;
@@ -114,8 +113,7 @@ export type AdminAllUsersStatsExport = {
       openTicketsCount: number;
       inProgressTicketsCount: number;
       closedTicketsCount: number;
-    }
-  >;
+    })[];
 
   tickets: AdminSupportTicket[];
   adminLogs: AdminLog[];
@@ -139,10 +137,9 @@ export type AdminUserDetails = {
   latestAdminLogs: AdminLog[];
 };
 
-
 async function callAdminApi<T>(
   action: string,
-  payload: Record<string, any> = {}
+  payload: Record<string, any> = {},
 ): Promise<T> {
   const execution = await functions.createExecution({
     functionId: ADMIN_API_FUNCTION_ID,

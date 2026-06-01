@@ -48,7 +48,7 @@ export default function StartScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View>
-          <Text style={styles.logo}>Fynux</Text>
+          <Text style={styles.logo}>Финансы</Text>
           <Text style={styles.title}>Автоматизированный учет расходов</Text>
           <Text style={styles.subtitle}>
             QR-чеки, электронные чеки, регулярные расходы и автоматическое
