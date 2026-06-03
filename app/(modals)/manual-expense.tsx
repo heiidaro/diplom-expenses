@@ -181,9 +181,7 @@ export default function ManualExpenseScreen() {
                     if (matchedCategoryId) {
                       setSelectedCategoryId(matchedCategoryId);
                     }
-                  } catch {
-                    // Автоподбор категории не должен ломать ручное добавление
-                  }
+                  } catch {}
                 }}
               />
             </View>

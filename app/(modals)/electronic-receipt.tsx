@@ -457,9 +457,7 @@ export default function ElectronicReceiptScreen() {
                   if (matchedCategoryId) {
                     setSelectedCategoryId(matchedCategoryId);
                   }
-                } catch {
-                  // автоподбор не должен мешать вводу
-                }
+                } catch {}
               }}
             />
 

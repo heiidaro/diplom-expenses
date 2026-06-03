@@ -269,9 +269,7 @@ export default function SpendingGoalsScreen() {
     setEndDate(parseGoalDate(goal.endDate));
     setIsActive(Boolean(goal.isActive));
 
-    setTimeout(() => {
-      // просто чтобы визуально было удобнее после нажатия
-    }, 0);
+    setTimeout(() => {}, 0);
   }
 
   function confirmDeleteGoal(goal: SpendingGoal) {

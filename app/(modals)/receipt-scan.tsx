@@ -313,9 +313,7 @@ export default function ReceiptScanScreen() {
                   if (matchedCategoryId) {
                     setSelectedCategoryId(matchedCategoryId);
                   }
-                } catch {
-                  // Автоподбор не должен мешать сохранению QR-чека
-                }
+                } catch {}
               }}
             />
 

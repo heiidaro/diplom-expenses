@@ -49,7 +49,6 @@ export default function SignInScreen() {
         }
       }
     } catch {
-      // Нет активной сессии — это нормально
     } finally {
       setIsLoading(false);
     }
